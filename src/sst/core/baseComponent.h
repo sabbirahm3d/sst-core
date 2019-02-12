@@ -25,6 +25,7 @@
 #include <sst/core/oneshot.h>
 #include <sst/core/componentInfo.h>
 #include <sst/core/simulation.h>
+#include <sst/core/elementinfo.h>
 
 using namespace SST::Statistics;
 
@@ -42,60 +43,7 @@ class SharedRegion;
 class SharedRegionMerger;
 class Component;
 class SubComponent;
-class SubComponentSlotInfo_impl;
-
-class SubComponentSlotInfo {
-
-protected:
-    
-    virtual SubComponent* protected_create(int slot_num, Params& params) const = 0;
-    
-public:
-    virtual ~SubComponentSlotInfo() {}
-    
-    virtual const std::string& getSlotName() const = 0;
-    virtual bool isPopulated(int slot_num) const = 0;
-    virtual bool isAllPopulated() const = 0;
-    virtual int getMaxPopulatedSlotNumber() const = 0;
-        
-    template <typename T>
-    T* create(int slot_num, Params& params) const {
-        SubComponent* sub = protected_create(slot_num, params);
-        if ( sub == NULL ) {
-            // Nothing populated at this index, simply return NULL
-            return NULL;
-        }
-        T* cast_sub = dynamic_cast<T*>(sub);
-        if ( cast_sub == NULL ) {
-            // SubComponent not castable to the correct class,
-            // fatal
-            Simulation::getSimulationOutput().fatal(CALL_INFO,1,"Attempt to load SubComponent into slot "
-                                                    "%s, index %d, which is not castable to correct time\n",
-                                                    getSlotName().c_str(),slot_num);
-        }
-        return cast_sub;
-    }
-
-    template <typename T>
-    void createAll(Params& params, std::vector<T*>& vec, bool insertNulls = true) const {
-        for ( int i = 0; i <= getMaxPopulatedSlotNumber(); ++i ) {
-            T* sub = create<T>(i, params);
-            if ( sub != NULL || insertNulls ) vec.push_back(sub);
-        }
-    }
-
-    template <typename T>
-    T* create(int slot_num) const {
-        Params empty;
-        return create<T>(slot_num, empty);
-    }
-
-    template <typename T>
-    void createAll(std::vector<T*>& vec, bool insertNulls = true) const {
-        Params empty;
-        return createAll<T>(empty, vec, insertNulls);
-    }
-};
+class SubComponentSlotInfo;
 
 
 /**
@@ -103,13 +51,19 @@ public:
  */
 class BaseComponent {
 
-    friend class SubComponentSlotInfo_impl;
+    friend class SubComponentSlotInfo;
 
 public:
 
-    BaseComponent();
+    // BaseComponent();
+    BaseComponent(Component* parent);
+    BaseComponent(ComponentId_t id);
+    BaseComponent() {}
     virtual ~BaseComponent();
 
+    /** Returns a pointer to the parent BaseComponent */
+    BaseComponent* getParent() const { return my_info->parent_info->component; }
+    
     /** Returns unique component ID */
     inline ComponentId_t getId() const { return my_info->id; }
 
@@ -257,6 +211,23 @@ public:
     /** Utility function to return the time since the simulation began in milliseconds */
     SimTime_t getCurrentSimTimeMilli() const;
 
+
+    bool isStatisticShared(const std::string& statName, bool first = true) {
+        if ( !first ) {
+            if ( doesComponentInfoStatisticExist(statName)) {
+                return true;
+            }
+        }
+        if ( my_info->sharesStatistics() ) {
+            return my_info->parent_info->component->isStatisticShared(statName, false);
+        }
+        else {
+            return false;
+        }
+    }
+
+
+    
     /** Registers a statistic.
         If Statistic is allowed to run (controlled by Python runtime parameters),
         then a statistic will be created and returned. If not allowed to run,
@@ -279,10 +250,16 @@ public:
         // Verify here that name of the stat is one of the registered
         // names of the component's ElementInfoStatistic.
         if (false == doesComponentInfoStatisticExist(statName)) {
-            printf("Error: Statistic %s name %s is not found in ElementInfoStatistic, exiting...\n",
-                   StatisticBase::buildStatisticFullName(getName().c_str(), statName, statSubId).c_str(),
-                   statName.c_str());
-            exit(1);
+            // I don't define this statistic, so it must be inherited (or non-existant)
+            if ( my_info->sharesStatistics() ) {
+                return my_info->parent_info->component->registerStatistic<T>(statName, statSubId);
+            }
+            else {
+                printf("Error: Statistic %s name %s is not found in ElementInfoStatistic, exiting...\n",
+                       StatisticBase::buildStatisticFullName(getName().c_str(), statName, statSubId).c_str(),
+                       statName.c_str());
+                exit(1);
+            }
         }
         // Check to see if the Statistic is previously registered with the Statistics Engine
         StatisticBase* prevStat = StatisticProcessingEngine::getInstance()->isStatisticRegisteredWithEngine<T>(getName(), my_info->getID(), statName, statSubId);
@@ -315,13 +292,106 @@ public:
      */
     Module* loadModuleWithComponent(std::string type, Component* comp, Params& params);
 
+
+    // template<class... ARGS>
+    // SubComponent* loadPythonDefinedSubComponent(std::string slot_name, ARGS... args) {
+    //     if ( !Factory::getFactory()->DoesSubComponentSlotExist(my_info->type, name) ) {
+    //         SST::Output outXX("SubComponentSlotWarning: ", 0, 0, Output::STDERR);
+    //         outXX.output(CALL_INFO, "Warning: SubComponentSlot \"%s\" is undocumented.\n", name.c_str());
+    //     }
+
+    //     ComponentInfo* sub_info = my_info->findSubComponent(name,slot_num);
+    //     if ( sub_info == NULL ) return NULL;
+    //     sub_info->share_flags = ComponentInfo::SHARE_NONE;
+    //     sub_info->parent_info = my_info;
+    
+    //     // ComponentInfo *oldLoadingSubcomponent = getTrueComponent()->currentlyLoadingSubComponent;
+    //     // // ComponentInfo *sub_info = &(infoItr->second);
+    //     // getTrueComponent()->currentlyLoadingSubComponent = sub_info;
+
+    //     Params myParams;
+    //     if ( sub_info->getParams() != NULL )
+    //         myParams.insert(*sub_info->getParams());
+
+        
+    //     SubComponent* ret = Factory::getFactory()->CreateSubComponent(sub_info->getType(), getTrueComponent(), myParams);
+    //     sub_info->setComponent(ret);
+
+    //     return ret;
+        
+    // }
+
+
+    template <class T, class... ARGS>
+    T* loadComponentDefinedSubComponent(std::string type, std::string slot_name, int slot_num, uint64_t share_flags, Params& params, ARGS... args) {
+
+        ComponentId_t cid = my_info->addComponentDefinedSubComponent(my_info, type, slot_name, slot_num, share_flags);
+        ComponentInfo* sub_info = my_info->findSubComponent(cid);
+
+        //This shouldn't happen since we just put it in, but just in case
+        if ( sub_info == NULL ) return NULL;
+
+        
+        // Check to see if this is documented, and if so, try to load it through the ElementBuilder
+        if ( doesSubComponentExist(sub_info->getType()) ) {            
+            auto ret = T::ELI_ElementBuilder.build(sub_info->getType(),sub_info->id,params,args...);
+            return ret;
+        }
+
+        return nullptr;        
+        
+    }
+
+    
+    template <class T, class... ARGS>
+    T* loadPythonDefinedSubComponent(std::string slot_name, ARGS... args) {
+        return loadPythonDefinedSubComponent<T,ARGS...>(slot_name, ComponentInfo::SHARE_NONE, args...);
+    }
+    
+    template <class T, class... ARGS>
+    T* loadPythonDefinedSubComponent(std::string slot_name, int share_flags, ARGS... args) {
+
+        // Get list of ComponentInfo objects and make sure that there is
+        // only one SubComponent put into this slot
+        // const std::vector<ComponentInfo>& subcomps = my_info->getSubComponents();
+        const std::map<ComponentId_t,ComponentInfo>& subcomps = my_info->getSubComponents();
+        int sub_count = 0;
+        int index = -1;
+        for ( auto &ci : subcomps ) {
+            if ( ci.second.getSlotName() == slot_name ) {
+                index = ci.second.getSlotNum();
+                sub_count++;
+            }
+        }
+        
+        if ( sub_count > 1 ) {
+            SST::Output outXX("SubComponentSlotWarning: ", 0, 0, Output::STDERR);
+            outXX.fatal(CALL_INFO, 1, "Error: ComponentSlot \"%s\" in component \"%s\" only allows for one SubComponent, %d provided.\n",
+                        slot_name.c_str(), my_info->getType().c_str(), sub_count);
+        }
+        
+        return loadPythonDefinedSubComponentByIndex<T,ARGS...>(slot_name, index, share_flags, args...);        
+    }
+    
     /** Loads a SubComponent from an element Library
      * @param type Fully Qualified library.moduleName
      * @param comp Pointer to component to pass to SuBaseComponent's constructor
      * @param params Parameters the module should use for configuration
      * @return handle to new instance of SubComponent, or NULL on failure.
      */
-    SubComponent* loadSubComponent(std::string type, Component* comp, Params& params);
+    SubComponent* loadSubComponent(std::string type, Component* comp, Params& params) __attribute__ ((deprecated("This version of loadSubComponent will be removed in SST version 10.0.  Please use loadAnonymousSubComponent(std::string, Params&).")));
+
+    /** Loads an anonymous SubComponent from an element Library.
+     * Anonymous means that the python configuration file does not
+     * have a handle to the SubComponent.  The type of the
+     * SubComponent is usually passed into the Component as a string
+     * parameter.
+     * @param type Fully Qualified library.moduleName
+     * @param params Parameters the module should use for configuration
+     * @return handle to new instance of SubComponent, or NULL on failure.
+     */
+    // SubComponent* loadAnonymousSubComponent(std::string type, Params& params);
+
     /* New ELI style */
     SubComponent* loadNamedSubComponent(std::string name);
     SubComponent* loadNamedSubComponent(std::string name, Params& params);
@@ -329,8 +399,39 @@ public:
 private:
     SubComponent* loadNamedSubComponent(std::string name, int slot_num);
     SubComponent* loadNamedSubComponent(std::string name, int slot_num, Params& params);
+
+
+    template <class T, class... ARGS>
+    T* loadPythonDefinedSubComponentByIndex(std::string slot_name, int slot_num, int share_flags, ARGS... args) {
+        // Check to see if the slot exists
+        ComponentInfo* sub_info = my_info->findSubComponent(slot_name,slot_num);
+        if ( sub_info == NULL ) return NULL;
+        sub_info->share_flags = share_flags;
+        sub_info->parent_info = my_info;
+        
+        // Check to see if this is documented, and if so, try to load it through the ElementBuilder
+        if ( doesSubComponentExist(sub_info->getType()) ) {
+            Params myParams;
+            if ( sub_info->getParams() != NULL )
+                myParams.insert(*sub_info->getParams());
+
+            
+            auto ret = T::ELI_ElementBuilder.build(sub_info->getType(),sub_info->id,myParams,args...);
+
+            return ret;
+
+
+        }
+
+        return nullptr;        
+    }
+
+
 public:
     SubComponentSlotInfo* getSubComponentSlotInfo(std::string name, bool fatalOnEmptyIndex = false);
+    ComponentInfo* getCurrentlyLoadingSubComponentInfo() { return currentlyLoadingSubComponent; }
+    ComponentId_t getCurrentlyLoadingSubComponentID() { return currentlyLoadingSubComponentID; }
+    
 
     /** Retrieve the X,Y,Z coordinates of this component */
     const std::vector<double>& getCoordinates() const {
@@ -340,15 +441,20 @@ public:
 protected:
     friend class SST::Statistics::StatisticProcessingEngine;
 
+    bool isComponentDefined() {
+        return my_info->isComponentDefined();
+    }
+
+    bool isPythonDefined() {
+        return my_info->isPythonDefined();
+    }
+    
     /** Manually set the default detaulTimeBase */
     void setDefaultTimeBase(TimeConverter *tc) {
         defaultTimeBase = tc;
     }
 
-    /** Timebase used if no other timebase is specified for calls like
-        BaseComponent::getCurrentSimTime(). Often set by BaseComponent::registerClock()
-        function */
-    TimeConverter* defaultTimeBase;
+    bool doesSubComponentExist(std::string type);
 
 
     /** Find a lookup table */
@@ -365,7 +471,7 @@ protected:
     // Return the Units for the statisticName from the ElementInfoStatistic
     std::string getComponentInfoStatisticUnits(const std::string &statisticName) const;
 
-    virtual Component* getTrueComponent() const = 0;
+    Component* getTrueComponent() const;
     /**
      * Returns self if Component
      * If sub-component, returns self if a "modern" subcomponent
@@ -374,14 +480,22 @@ protected:
     virtual BaseComponent* getStatisticOwner() const = 0;
 
 protected:
-    ComponentInfo* my_info;
     Simulation *sim;
+    ComponentInfo* my_info;
     ComponentInfo* currentlyLoadingSubComponent;
+    ComponentId_t currentlyLoadingSubComponentID;
+
+    /** Timebase used if no other timebase is specified for calls like
+        BaseComponent::getCurrentSimTime(). Often set by BaseComponent::registerClock()
+        function */
+    TimeConverter* defaultTimeBase;
 
 
 private:
-    void addSelfLink(std::string name);
 
+    void addSelfLink(std::string name);
+    Link* getLinkFromParentSharedPort(const std::string& port);
+    
     template <typename T>
     Statistic<T>* registerStatisticCore(std::string statName, std::string statSubId = "")
     {
@@ -391,8 +505,131 @@ private:
         #include "sst/core/statapi/componentregisterstat_impl.h"
     }
 
-
 };
+
+
+/**
+   Used to load SubComponents when multiple SubComponents are loaded
+   into a single slot (will also also work when a single SubComponent
+   is loaded).
+ */
+class SubComponentSlotInfo {
+
+    BaseComponent* comp;
+    std::string slot_name;
+    int max_slot_index;
+
+protected:
+    
+    SubComponent* protected_create(int slot_num, Params& params) const {
+        if ( slot_num > max_slot_index ) return NULL;
+
+        return comp->loadNamedSubComponent(slot_name, slot_num, params);
+    }    
+    
+public:
+    ~SubComponentSlotInfo() {}
+    
+
+    SubComponentSlotInfo(BaseComponent* comp, std::string slot_name) :
+        comp(comp),
+        slot_name(slot_name)
+    {
+        const std::map<ComponentId_t,ComponentInfo>& subcomps = comp->my_info->getSubComponents();
+
+        // Look for all subcomponents with the right slot name
+        max_slot_index = -1;
+        for ( auto &ci : subcomps ) {
+            if ( ci.second.getSlotName() == slot_name ) {
+                if ( ci.second.getSlotNum() > static_cast<int>(max_slot_index) ) {
+                    max_slot_index = ci.second.getSlotNum();
+                }
+            }
+        }
+    }
+
+    const std::string& getSlotName() const {
+        return slot_name;
+    };
+
+    bool isPopulated(int slot_num) const {
+        if ( slot_num > max_slot_index ) return false;
+        if ( comp->my_info->findSubComponent(slot_name,slot_num) == NULL ) return false;
+        return true;
+    }
+
+    bool isAllPopulated() const {
+        for ( int i = 0; i < max_slot_index; ++i ) {
+            if ( comp->my_info->findSubComponent(slot_name,i) == NULL ) return false;
+        }
+        return true;
+    }
+
+    int getMaxPopulatedSlotNumber() const {
+        return max_slot_index;
+    }
+        
+    template <typename T>
+    T* create(int slot_num, Params& params) const {
+        SubComponent* sub = protected_create(slot_num, params);
+        if ( sub == NULL ) {
+            // Nothing populated at this index, simply return NULL
+            return NULL;
+        }
+        T* cast_sub = dynamic_cast<T*>(sub);
+        if ( cast_sub == NULL ) {
+            // SubComponent not castable to the correct class,
+            // fatal
+            Simulation::getSimulationOutput().fatal(CALL_INFO,1,"Attempt to load SubComponent into slot "
+                                                    "%s, index %d, which is not castable to correct time\n",
+                                                    getSlotName().c_str(),slot_num);
+        }
+        return cast_sub;
+    }
+
+    template <typename T>
+    void createAll(Params& params, std::vector<T*>& vec, bool insertNulls = true) const {
+        for ( int i = 0; i <= getMaxPopulatedSlotNumber(); ++i ) {
+            T* sub = create<T>(i, params);
+            if ( sub != NULL || insertNulls ) vec.push_back(sub);
+        }
+    }
+
+    template <typename T>
+    T* create(int slot_num) const {
+        Params empty;
+        return create<T>(slot_num, empty);
+    }
+
+    template <typename T>
+    void createAll(std::vector<T*>& vec, bool insertNulls = true) const {
+        Params empty;
+        return createAll<T>(empty, vec, insertNulls);
+    }
+
+
+
+    template <class T, class... ARGS>
+    T* create(int slot_num, int share_flags, ARGS... args) const {
+        return comp->loadPythonDefinedSubComponentByIndex<T,ARGS...>(slot_name,slot_num, share_flags, args...);
+    }
+
+    template <typename T, class... ARGS>
+    void createAll(std::vector<T*>& vec, bool insertNulls, int share_flags, ARGS... args) const {
+        for ( int i = 0; i <= getMaxPopulatedSlotNumber(); ++i ) {
+            T* sub = create<T>(i, share_flags, args...);
+            if ( sub != NULL || insertNulls ) vec.push_back(sub);
+        }
+    }
+
+    template <typename T, class... ARGS>
+    void createAll(std::vector<T*>& vec, int share_flags, ARGS... args) const {
+        createAll<T,ARGS...>(vec,true,share_flags,args...);
+    }
+};
+
+
+
 
 } //namespace SST
 

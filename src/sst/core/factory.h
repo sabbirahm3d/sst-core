@@ -100,6 +100,9 @@ public:
      */
     SubComponent* CreateSubComponent(std::string type, Component* comp, Params& params);
 
+    // SubComponentBuilderBase* getSubComponentBuilder(std::string type);
+    bool doesSubComponentExist(std::string type);
+    
     /** Return partitioner function
      * @param name - Fully qualified elementlibname.partitioner type name
      */
@@ -311,6 +314,7 @@ public:
 /**************************************************************************
   Class to support SubComponents
 **************************************************************************/
+class SubComponentBuilderBase;
 
 class SubComponentDocOldELI : public SubComponentElementInfo {
 private:
@@ -389,6 +393,10 @@ public:
     const std::string getCompileFile() { return "UNKNOWN"; }
     const std::string getCompileDate() { return "UNKNOWN"; }
 
+    SubComponentBuilderBase* getSubComponentBuilder() {
+        return NULL;
+    }
+    
 };
 
 

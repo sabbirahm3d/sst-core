@@ -11,7 +11,10 @@
 
 
 #include <sst_config.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-register"
 #include <Python.h>
+#pragma clang diagnostic pop
 
 #include <sst/core/warnmacros.h>
 #ifdef SST_CONFIG_HAVE_MPI
@@ -351,6 +354,8 @@ static void start_simulation(uint32_t tid, SimThreadInfo_t &info, Core::ThreadSa
 
 }
 
+
+
 int
 main(int argc, char *argv[])
 {
@@ -377,6 +382,11 @@ main(int argc, char *argv[])
         return -1;
     }
     world_size.thread = cfg.getNumThreads();
+
+    /* Build objected needed for startup */
+    Factory *factory = new Factory(cfg.getLibPath());
+    Output::setWorldSize(world_size, myrank);
+    g_output = Output::setDefaultObject(cfg.output_core_prefix, cfg.getVerboseLevel(), 0, Output::STDOUT);
 
     SSTModelDescription* modelGen = 0;
 
@@ -406,10 +416,10 @@ main(int argc, char *argv[])
 
     double start = sst_get_cpu_time();
 
-    /* Build objected needed for startup */
-    Factory *factory = new Factory(cfg.getLibPath());
-    Output::setWorldSize(world_size, myrank);
-    g_output = Output::setDefaultObject(cfg.output_core_prefix, cfg.getVerboseLevel(), 0, Output::STDOUT);
+    // /* Build objected needed for startup */
+    // Factory *factory = new Factory(cfg.getLibPath());
+    // Output::setWorldSize(world_size, myrank);
+    // g_output = Output::setDefaultObject(cfg.output_core_prefix, cfg.getVerboseLevel(), 0, Output::STDOUT);
 
     
     g_output.verbose(CALL_INFO, 1, 0, "#main() My rank is (%u.%u), on %u/%u nodes/threads\n", myRank.rank,myRank.thread, world_size.rank, world_size.thread);

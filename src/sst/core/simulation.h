@@ -63,7 +63,45 @@ namespace Statistics {
     class StatisticProcessingEngine;
 }
 
+struct SubComponentParentInfo {
 
+    static const int SHARE_PORTS = 0x1;
+    static const int SHARE_PARAMS = 0x2;
+    static const int SHARE_SLOTS = 0x4;
+    static const int SHARE_STATS = 0x8;
+    
+    BaseComponent* const parent;
+    ComponentInfo* const child_info;
+    const std::string slot;
+    const int slot_num;
+    const uint64_t flags;
+
+    SubComponentParentInfo(BaseComponent* parent, ComponentInfo* child_info, const std::string& slot, int slot_num, uint64_t flags) :
+        parent(parent),
+        child_info(child_info),
+        slot(slot),
+        slot_num(slot_num),
+        flags(flags)
+    {}
+
+    bool sharesPorts() {
+        return (flags & SHARE_PORTS) != 0;
+    }
+    
+    bool sharesParams() {
+        return (flags & SHARE_PARAMS) != 0;
+    }
+    
+    bool sharesSlots() {
+        return (flags & SHARE_SLOTS) != 0;
+    }
+    
+    bool sharesStats() {
+        return (flags & SHARE_STATS) != 0;
+    }
+        
+    
+};
 
 /**
  * Main control class for a SST Simulation.
@@ -223,6 +261,7 @@ public:
 		if ( NULL != i ) {
 			return i;
 		} else {
+            printf("Simulation::getComponentInfo() couldn't find component with id = %llx\n", id);
             printf("Simulation::getComponentInfo() couldn't find component with id = %" PRIu64 "\n", id);
             exit(1);
 		}
@@ -360,13 +399,30 @@ private:
     std::string      output_directory;
     static SharedRegionManager* sharedRegionManager;
     bool             wireUpFinished;
-
+    std::vector<SubComponentParentInfo> subComponentParentStack;
+    
     static std::unordered_map<std::thread::id, Simulation*> instanceMap;
     static std::vector<Simulation*> instanceVec;
 
     friend void wait_my_turn_start();
     friend void wait_my_turn_end();
 
+public:
+
+    const SubComponentParentInfo& getCurrentSubComponentParentInfo() const {
+        return subComponentParentStack.back();
+    }
+
+    class AddToSubComponentParentStack {
+    public:
+        AddToSubComponentParentStack(BaseComponent* parent, ComponentInfo* child_info, std::string slot, int slot_num, uint64_t flags) {
+            getSimulation()->subComponentParentStack.emplace_back(parent,child_info,slot,slot_num,flags);
+        }
+
+        ~AddToSubComponentParentStack() {
+            getSimulation()->subComponentParentStack.pop_back();
+        }
+    };
 };
 
 // Function to allow for easy serialization of threads while debugging

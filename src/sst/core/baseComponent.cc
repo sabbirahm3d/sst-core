@@ -30,68 +30,30 @@
 namespace SST {
 
 
-class SubComponentSlotInfo_impl : public SubComponentSlotInfo {
-private:
+// BaseComponent::BaseComponent() :
+//     defaultTimeBase(NULL), my_info(NULL),
+//     sim(Simulation::getSimulation()),
+//     currentlyLoadingSubComponent(NULL),
+//     parent(NULL)
+// {}
 
-    BaseComponent* comp;
-    std::string slot_name;
-    int max_slot_index;
-    
-public:
+// BaseComponent::BaseComponent(Component* parent) :
+//     sim(Simulation::getSimulation()),
+//     defaultTimeBase(NULL),
+//     my_info(NULL),
+//     currentlyLoadingSubComponent(NULL)
+// {
+// }
 
-    SubComponent* protected_create(int slot_num, Params& params) const {
-        if ( slot_num > max_slot_index ) return NULL;
-
-        return comp->loadNamedSubComponent(slot_name, slot_num, params);
-    }
-    
-    ~SubComponentSlotInfo_impl() {}
-    
-    SubComponentSlotInfo_impl(BaseComponent* comp, std::string slot_name) :
-        comp(comp),
-        slot_name(slot_name)
-    {
-        const std::vector<ComponentInfo>& subcomps = comp->my_info->getSubComponents();
-
-        // Look for all subcomponents with the right slot name
-        max_slot_index = -1;
-        for ( auto &ci : subcomps ) {
-            if ( ci.getSlotName() == slot_name ) {
-                if ( ci.getSlotNum() > static_cast<int>(max_slot_index) ) {
-                    max_slot_index = ci.getSlotNum();
-                }
-            }
-        }
-    }
-
-    const std::string& getSlotName() const {
-        return slot_name;
-    }
-    
-    bool isPopulated(int slot_num) const {
-        if ( slot_num > max_slot_index ) return false;
-        if ( comp->my_info->findSubComponent(slot_name,slot_num) == NULL ) return false;
-        return true;
-    }
-    
-    bool isAllPopulated() const {
-        for ( int i = 0; i < max_slot_index; ++i ) {
-            if ( comp->my_info->findSubComponent(slot_name,i) == NULL ) return false;
-        }
-        return true;
-    }
-
-    int getMaxPopulatedSlotNumber() const {
-        return max_slot_index;
-    }
-};
-
-BaseComponent::BaseComponent() :
-    defaultTimeBase(NULL), my_info(NULL),
+BaseComponent::BaseComponent(ComponentId_t id) :
     sim(Simulation::getSimulation()),
-    currentlyLoadingSubComponent(NULL)
+    my_info(Simulation::getSimulation()->getComponentInfo(id)),
+    currentlyLoadingSubComponent(NULL),
+    defaultTimeBase(NULL)
 {
+    my_info->component = this;
 }
+
 
 
 BaseComponent::~BaseComponent()
@@ -196,23 +158,95 @@ BaseComponent::isPortConnected(const std::string &name) const
     return (my_info->getLinkMap()->getLink(name) != NULL);
 }
 
+
+// Looks at parents' shared ports and returns the link connected to
+// the port of the correct name in one of my parents. If I find the
+// correct link, and it hasn't been configured yet, I return it to the
+// child and remove it from my linkmap.  The child will insert it into
+// their link map.
+Link*
+BaseComponent::getLinkFromParentSharedPort(const std::string& port)
+{
+    LinkMap* myLinks = my_info->getLinkMap();
+
+    // See if the link is found, and if not see if my parent shared
+    // their ports with me
+    
+    if ( NULL != myLinks ) {
+        Link* tmp = myLinks->getLink(port);
+        if ( NULL != tmp ) {
+            // Found the link in my linkmap
+
+            // Check to see if it has been configured.  If not, remove
+            // it from my link map and return it to the child.
+            if ( !tmp->isConfigured() ) {
+                myLinks->removeLink(port);
+                return tmp;
+            }
+        }
+    }
+
+    // If we get here, we didn't find the link.  Check to see if my
+    // parent shared with me and if so, call
+    // getLinkFromParentSharedPort on them
+        
+    if ( my_info->sharesPorts() ) {
+        return my_info->parent_info->component->getLinkFromParentSharedPort(port);
+    }
+    else {
+        return NULL;
+    }    
+}
+
+
 Link*
 BaseComponent::configureLink(std::string name, TimeConverter* time_base, Event::HandlerBase* handler)
 {
     LinkMap* myLinks = my_info->getLinkMap();
-    Link* tmp = myLinks->getLink(name);
-    if ( tmp == NULL ) return NULL;
 
-    // If no functor, this is a polling link
-    if ( handler == NULL ) {
-        tmp->setPolling();
+
+    Link* tmp = NULL;
+    
+    // If I have a linkmap, check to see if a link was connected to
+    // port "name"
+    if ( NULL != myLinks ) {
+        tmp = myLinks->getLink(name);
     }
-    tmp->setFunctor(handler);
-    if ( time_base != NULL ) tmp->setDefaultTimeBase(time_base);
-    else tmp->setDefaultTimeBase(defaultTimeBase);
+
+    // If tmp is NULL, then I didn't have the port connected, check
+    // with parents if sharing is turned on
+    if ( NULL == tmp ) {
+        if ( my_info->sharesPorts() ) {
+            tmp = my_info->parent_info->component->getLinkFromParentSharedPort(name);
+
+            // If I got a link from my parent, I need to put it in my
+            // link map
+            if ( NULL != tmp ) {
+                if ( NULL == myLinks ) {
+                    myLinks = new LinkMap();
+                    my_info->link_map = myLinks;
+                }
+                myLinks->insertLink(name,tmp);
+            }
+        }
+    }
+
+    // If I got a link, configure it
+    if ( NULL != tmp ) {
+        
+        // If no functor, this is a polling link
+        if ( handler == NULL ) {
+            tmp->setPolling();
+        }
+        tmp->setFunctor(handler);
+        if ( NULL != time_base ) tmp->setDefaultTimeBase(time_base);
+        else tmp->setDefaultTimeBase(defaultTimeBase);
+        tmp->setAsConfigured();
 #ifdef __SST_DEBUG_EVENT_TRACKING__
-    tmp->setSendingComponentInfo(my_info->getName(), my_info->getType(), name);
-#endif
+        tmp->setSendingComponentInfo(my_info->getName(), my_info->getType(), name);
+#endif        
+    }
+
     return tmp;
 }
 
@@ -235,7 +269,7 @@ BaseComponent::addSelfLink(std::string name)
     myLinks->addSelfPort(name);
     if ( myLinks->getLink(name) != NULL ) {
         printf("Attempting to add self link with duplicate name: %s\n",name.c_str());
-	abort();
+        abort();
     }
 
     Link* link = new SelfLink();
@@ -301,21 +335,50 @@ BaseComponent::loadModuleWithComponent(std::string type, Component* comp, Params
     return Factory::getFactory()->CreateModuleWithComponent(type,comp,params);
 }
 
+
 /* Old ELI style */
 SubComponent*
 BaseComponent::loadSubComponent(std::string type, Component* comp, Params& params)
 {
-    /* Old Style SubComponents end up with their parent's Id, name, etc. */
-    // ComponentInfo *sub_info = new ComponentInfo(type, &params, comp->my_info);
-    ComponentInfo *sub_info = new ComponentInfo(type, &params, getTrueComponent()->currentlyLoadingSubComponent);
-    ComponentInfo *oldLoadingSubcomponent = getTrueComponent()->currentlyLoadingSubComponent;
-    /* By "magic", the new component will steal ownership of this pointer */
-    getTrueComponent()->currentlyLoadingSubComponent = sub_info;
+    // /* Old Style SubComponents end up with their parent's Id, name, etc. */
+    // ComponentInfo *sub_info = new ComponentInfo(type, &params, my_info);
 
+    // /* By "magic", the new component will steal ownership of this pointer */
+    // currentlyLoadingSubComponent = sub_info;
+    ComponentId_t cid = comp->currentlyLoadingSubComponentID;
+    comp->currentlyLoadingSubComponentID = my_info->addComponentDefinedSubComponent(my_info, type, "ANONYMOUS", 0, 0xFF);
+    
     SubComponent* ret = Factory::getFactory()->CreateSubComponent(type,comp,params);
-    sub_info->setComponent(ret);
-    getTrueComponent()->currentlyLoadingSubComponent = oldLoadingSubcomponent;
+    comp->currentlyLoadingSubComponentID = cid;
+
+    // sub_info->setComponent(ret);
+    // currentlyLoadingSubComponent = NULL;
     return ret;
+}
+
+// SubComponent*
+// BaseComponent::loadAnonymousSubComponent(std::string type, Params& params)
+// {
+
+//     ComponentInfo *sub_info = new ComponentInfo(type, &params, my_info);
+
+//     /* By "magic", the new component will steal ownership of this pointer */
+//     currentlyLoadingSubComponent = sub_info;
+
+//     SubComponent* ret = Factory::getFactory()->CreateSubComponent(type,getTrueComponent(),params);
+//     sub_info->setComponent(ret);
+//     currentlyLoadingSubComponent = NULL;
+
+//     return ret;    
+// }
+
+Component*
+BaseComponent::getTrueComponent() const {
+    // Walk up the parent tree until we hit the base Component.  We
+    // know we're the base Component when parent is NULL.
+    ComponentInfo* info = my_info;
+    while ( info->parent_info != NULL ) info = info->parent_info;
+    return static_cast<Component* const>(info->component);
 }
 
 /* New ELI style */
@@ -329,10 +392,10 @@ SubComponent*
 BaseComponent::loadNamedSubComponent(std::string name, Params& params) {
     // Get list of ComponentInfo objects and make sure that there is
     // only one SubComponent put into this slot
-    const std::vector<ComponentInfo>& subcomps = my_info->getSubComponents();
+    const std::map<ComponentId_t,ComponentInfo>& subcomps = my_info->getSubComponents();
     int sub_count = 0;
     for ( auto &ci : subcomps ) {
-        if ( ci.getSlotName() == name ) {
+        if ( ci.second.getSlotName() == name ) {
             sub_count++;
         }
     }
@@ -352,11 +415,10 @@ BaseComponent::loadNamedSubComponent(std::string name, int slot_num) {
     return loadNamedSubComponent(name, slot_num, empty);
 }
 
+// Private
 SubComponent*
 BaseComponent::loadNamedSubComponent(std::string name, int slot_num, Params& params)
 {
-    // auto infoItr = my_info->getSubComponents().find(name);
-    // if ( infoItr == my_info->getSubComponents().end() ) return NULL;
     if ( !Factory::getFactory()->DoesSubComponentSlotExist(my_info->type, name) ) {
         SST::Output outXX("SubComponentSlotWarning: ", 0, 0, Output::STDERR);
         outXX.output(CALL_INFO, "Warning: SubComponentSlot \"%s\" is undocumented.\n", name.c_str());
@@ -364,11 +426,16 @@ BaseComponent::loadNamedSubComponent(std::string name, int slot_num, Params& par
     
     ComponentInfo* sub_info = my_info->findSubComponent(name,slot_num);
     if ( sub_info == NULL ) return NULL;
+    sub_info->share_flags = ComponentInfo::SHARE_NONE;
+    sub_info->parent_info = my_info;
     
-    ComponentInfo *oldLoadingSubcomponent = getTrueComponent()->currentlyLoadingSubComponent;
-    // ComponentInfo *sub_info = &(infoItr->second);
-    getTrueComponent()->currentlyLoadingSubComponent = sub_info;
+    // ComponentInfo *oldLoadingSubcomponent = getTrueComponent()->currentlyLoadingSubComponent;
+    // // ComponentInfo *sub_info = &(infoItr->second);
+    // getTrueComponent()->currentlyLoadingSubComponent = sub_info;
 
+    ComponentId_t cid = getTrueComponent()->currentlyLoadingSubComponentID;
+    getTrueComponent()->currentlyLoadingSubComponentID = sub_info->id;
+        
     Params myParams;
     if ( sub_info->getParams() != NULL )
         myParams.insert(*sub_info->getParams());
@@ -377,13 +444,13 @@ BaseComponent::loadNamedSubComponent(std::string name, int slot_num, Params& par
     SubComponent* ret = Factory::getFactory()->CreateSubComponent(sub_info->getType(), getTrueComponent(), myParams);
     sub_info->setComponent(ret);
 
-    getTrueComponent()->currentlyLoadingSubComponent = oldLoadingSubcomponent;
+    getTrueComponent()->currentlyLoadingSubComponentID = cid;
     return ret;
 }
 
 SubComponentSlotInfo*
 BaseComponent::getSubComponentSlotInfo(std::string name, bool fatalOnEmptyIndex) {
-    SubComponentSlotInfo_impl* info = new SubComponentSlotInfo_impl(this, name);
+    SubComponentSlotInfo* info = new SubComponentSlotInfo(this, name);
     if ( info->getMaxPopulatedSlotNumber() < 0 ) {
         // Nothing registered on this slot
         delete info;
@@ -398,6 +465,17 @@ BaseComponent::getSubComponentSlotInfo(std::string name, bool fatalOnEmptyIndex)
     return info;
 }
 
+// SubComponentBuilderBase*
+// BaseComponent::getSubComponentBuilder(std::string type)
+// {
+//     return Factory::getFactory()->getSubComponentBuilder(type);
+// }
+
+bool
+BaseComponent::doesSubComponentExist(std::string type)
+{
+    return Factory::getFactory()->doesSubComponentExist(type);
+}
 
 SharedRegion* BaseComponent::getLocalSharedRegion(const std::string &key, size_t size)
 {

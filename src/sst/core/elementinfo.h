@@ -20,16 +20,20 @@
 #include <vector>
 
 #include <sst/core/elibase.h>
+#include <sst/core/elementBuilder.h>
 
 namespace SST {
 class Component;
 class Module;
 class SubComponent;
+class BaseComponent;
 namespace Partition {
     class SSTPartitioner;
 }
 class RankInfo;
 class SSTElementPythonModule;
+
+class SubComponentBuilderBase;
 
 /****************************************************
    Base classes for templated documentation classes
@@ -40,6 +44,8 @@ const std::vector<int> SST_ELI_VERSION = {0, 9, 0};
 class BaseElementInfo {
 
 public:
+    virtual ~BaseElementInfo() {}
+    
     virtual const std::string getLibrary() = 0;
     virtual const std::string getDescription() = 0;
     virtual const std::string getName() = 0;
@@ -60,7 +66,6 @@ protected:
     void initialize_allowedKeys();
     
 public:
-
     virtual const std::vector<ElementInfoParam>& getValidParams() = 0;
 
     const Params::KeySet_t& getParamNames() { return allowedKeys; }
@@ -543,8 +548,7 @@ template<class T, unsigned V1, unsigned V2, unsigned V3> const bool SST::Compone
 /**************************************************************************
   Classes to support SubComponents
 **************************************************************************/
-
-template <class T, unsigned V1, unsigned V2, unsigned V3>
+template <typename T, unsigned V1, unsigned V2, unsigned V3>
 class SubComponentDoc : public SubComponentElementInfo {
 private:
     static const bool loaded;
@@ -557,11 +561,12 @@ public:
         initialize_statnames();
     }
 
-    SubComponent* create(Component* comp, Params& params) {
-        // return new T(comp,params);
+    bool areWeLoaded() { return loaded; }
+    
+    SubComponent* create(Component* UNUSED(comp), Params& UNUSED(params)) {
         return ELI_templatedCreateforSubComponent<T>(comp,params);
     }
-
+    
     static bool isLoaded() { return loaded; }
     const std::string getLibrary() { return T::ELI_getLibrary(); }
     const std::string getName() { return T::ELI_getName(); }
@@ -576,6 +581,34 @@ public:
     const std::string getCompileFile() { return T::ELI_getCompileFile(); }
     const std::string getCompileDate() { return T::ELI_getCompileDate(); }
 };
+
+// // These static functions choose between the old and new version for
+// // creating subcomponents
+// template<class T, unsigned V1, unsigned V2, unsigned V3,class BASE>
+// typename std::enable_if<std::is_constructible<T,ComponentId_t, BASE>::value &&
+//                         not std::is_constructible<T,Component*, Params&>::value, SubComponentElementInfo*>::type
+// createSubComponentDoc() {
+//     return new SubComponentDoc<T,V1,V2,V3,BASE>();
+// }
+
+// template<class T, unsigned V1, unsigned V2, unsigned V3, class BASE>
+// typename std::enable_if<std::is_constructible<T,ComponentId_t, BASE>::value &&
+//                         std::is_constructible<T,Component*, Params&>::value, SubComponentElementInfo*>::type
+// createSubComponentDoc() {
+//     return new SubComponentDocBoth<T,V1,V2,V3,BASE>();
+// }
+
+// template<class T, unsigned V1, unsigned V2, unsigned V3, class BASE>
+// typename std::enable_if<not std::is_constructible<T,ComponentId_t, BASE>::value &&
+//                         std::is_constructible<T,Component*, Params&>::value, SubComponentElementInfo*>::type
+// createSubComponentDoc() {
+//     return new SubComponentDocOld<T,V1,V2,V3,BASE>();
+// }
+
+// template<class T, unsigned V1, unsigned V2, unsigned V3, class BASE> const bool SubComponentDoc<T,V1,V2,V3,BASE>::loaded = ElementLibraryDatabase::addSubComponent(createSubComponentDoc<T,V1,V2,V3,BASE>());
+
+
+// template<class T, unsigned V1, unsigned V2, unsigned V3> const bool SubComponentDoc<T,V1,V2,V3>::loaded = ElementLibraryDatabase::addSubComponent(createSubComponentDoc<T,V1,V2,V3,void>());
 
 template<class T, unsigned V1, unsigned V2, unsigned V3> const bool SubComponentDoc<T,V1,V2,V3>::loaded = ElementLibraryDatabase::addSubComponent(new SubComponentDoc<T,V1,V2,V3>());
 
@@ -824,6 +857,8 @@ constexpr unsigned SST_ELI_getTertiaryNumberFromVersion(SST_ELI_element_version_
     SST_ELI_INSERT_COMPILE_INFO()
 
 #define SST_ELI_ELEMENT_VERSION(...) {__VA_ARGS__}
+#define SST_ELI_SC_CONTRUCTOR_SIGNATURE(...) __VA_ARGS__
+#define SST_ELI_PASSTHROUGH(...) __VA_ARGS__
 
 
 #define SST_ELI_DOCUMENT_PARAMS(...)                              \
@@ -853,7 +888,16 @@ constexpr unsigned SST_ELI_getTertiaryNumberFromVersion(SST_ELI_element_version_
     }
 
 
-#define SST_ELI_REGISTER_SUBCOMPONENT(cls,lib,name,version,desc,interface)   \
+#define SST_ELI_REGISTER_SUBCOMPONENT_API(cls,...) \
+    SST_ELI_DECLARE_BUILDER(cls,ComponentId_t,Params&,##__VA_ARGS__)
+
+
+#define ELI_CHOOSE_MACRO(_1,_2,NAME,...) NAME
+#define SST_ELI_REGISTER_SUBCOMPONENT(cls,lib,name,version,desc,...) ELI_CHOOSE_MACRO(__VA_ARGS__ , SST_ELI_REGISTER_SUBCOMPONENT2 , SST_ELI_REGISTER_SUBCOMPONENT1)(cls,lib,name,SST_ELI_PASSTHROUGH(version),desc, __VA_ARGS__)
+//#define SST_ELI_REGISTER_SUBCOMPONENT(cls,lib,name,version,desc,...) ELI_CHOOSE_MACRO(__VA_ARGS__ , SST_ELI_REGISTER_SUBCOMPONENT2 , SST_ELI_REGISTER_SUBCOMPONENT1)(cls,lib,name,version,desc, __VA_ARGS__)
+
+
+#define SST_ELI_REGISTER_SUBCOMPONENT1(cls,lib,name,version,desc,interface_str) \
     bool ELI_isLoaded() {                           \
         return SST::SubComponentDoc<cls,SST::SST_ELI_getMajorNumberFromVersion(version),SST::SST_ELI_getMinorNumberFromVersion(version),SST::SST_ELI_getTertiaryNumberFromVersion(version)>::isLoaded(); \
     } \
@@ -867,15 +911,37 @@ constexpr unsigned SST_ELI_getTertiaryNumberFromVersion(SST_ELI_element_version_
       return desc; \
     } \
     static const std::string ELI_getInterface() {  \
-      return interface; \
+      return interface_str; \
     } \
     static const std::vector<int>& ELI_getVersion() { \
         static std::vector<int> var = version ; \
         return var; \
     } \
     SST_ELI_INSERT_COMPILE_INFO()
-
-
+    
+#define SST_ELI_REGISTER_SUBCOMPONENT2(cls,lib,name,version,desc,interface,interface_str) \
+    bool ELI_isLoaded() {                           \
+        return SST::SubComponentDoc<cls,SST::SST_ELI_getMajorNumberFromVersion(version),SST::SST_ELI_getMinorNumberFromVersion(version),SST::SST_ELI_getTertiaryNumberFromVersion(version)>::isLoaded(); \
+    } \
+    static const std::string ELI_getLibrary() { \
+      return lib; \
+    } \
+    static const std::string ELI_getName() { \
+      return name; \
+    } \
+    static const std::string ELI_getDescription() {  \
+      return desc; \
+    } \
+    static const std::string ELI_getInterface() {  \
+      return interface_str; \
+    } \
+    static const std::vector<int>& ELI_getVersion() { \
+        static std::vector<int> var = version ; \
+        return var; \
+    } \
+    SST_ELI_REGISTER_DERIVED_BUILDER(lib "." name, cls, interface )   \
+    SST_ELI_INSERT_COMPILE_INFO()
+        
 
 #define SST_ELI_REGISTER_MODULE(cls,lib,name,version,desc,interface)    \
     bool ELI_isLoaded() {                           \

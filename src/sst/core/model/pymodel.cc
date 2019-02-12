@@ -13,7 +13,11 @@
 
 #include "sst_config.h"
 #include <sst/core/warnmacros.h>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-register"
 #include <Python.h>
+#pragma clang diagnostic pop
 
 
 #ifdef SST_CONFIG_HAVE_MPI

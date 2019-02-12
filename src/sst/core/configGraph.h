@@ -195,6 +195,7 @@ typedef SparseVectorMap<LinkId_t,ConfigLink> ConfigLinkMap_t;
 class ConfigComponent : public SST::Core::Serialization::serializable {
 public:
     ComponentId_t                 id;                /*!< Unique ID of this component */
+    ConfigComponent*              ultimate_parent;
     std::string                   name;              /*!< Name of this component, or slot name for subcomp */
     int                           slot_num;          /*!< Slot number.  Only valid for subcomponents */
     std::string                   type;              /*!< Type of this component */
@@ -205,7 +206,8 @@ public:
     std::vector<Statistics::StatisticInfo> enabledStatistics; /*!< List of statistics to be enabled */
     std::vector<ConfigComponent>  subComponents; /*!< List of subcomponents */
     std::vector<double>           coords;
-
+    uint16_t                      nextSubID;
+    
     inline const ComponentId_t& key()const { return id; }
 
     /** Print Component information */
@@ -215,7 +217,7 @@ public:
     ConfigComponent cloneWithoutLinksOrParams() const;
 
     ~ConfigComponent() {}
-    ConfigComponent() : id(-1) {}
+    ConfigComponent() : id(-1), nextSubID(1) {}
 
     void setRank(RankInfo r);
     void setWeight(double w);

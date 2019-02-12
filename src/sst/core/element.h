@@ -28,6 +28,7 @@ class Introspector;
 class Module;
 class Params;
 class SubComponent;
+class BaseComponent;
 namespace Partition {
     class SSTPartitioner;
 }

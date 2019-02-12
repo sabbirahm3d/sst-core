@@ -37,6 +37,7 @@ nobase_dist_sst_HEADERS = \
 	env/envquery.h \
 	env/envconfig.h \
 	element.h \
+	elementBuilder.h \
 	elementinfo.h \
 	elemLoader.h \
 	elibase.h \

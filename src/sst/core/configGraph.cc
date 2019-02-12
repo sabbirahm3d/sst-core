@@ -102,7 +102,7 @@ std::pair<bool, std::string> ConfigStatGroup::verifyStatsAndComponents(const Con
 
 
 void ConfigComponent::print(std::ostream &os) const {
-    os << "Component " << name << " (id = " << id << ")" << std::endl;
+    os << "Component " << name << " (id = " << std::hex << id << std::dec << ")" << std::endl;
     os << "  slot_num = " << slot_num << std::endl;
     os << "  type = " << type << std::endl;
     os << "  weight = " << weight << std::endl;
@@ -285,6 +285,7 @@ void ConfigComponent::setStatisticParameters(const std::string &statisticName, c
 
 
 
+// ConfigComponent* ConfigComponent::addSubComponent(ComponentId_t sid, const std::string &name, const std::string &type, int slot_num)
 ConfigComponent* ConfigComponent::addSubComponent(ComponentId_t sid, const std::string &name, const std::string &type, int slot_num)
 {
     /* Check for existing subComponent with this name */
@@ -292,10 +293,10 @@ ConfigComponent* ConfigComponent::addSubComponent(ComponentId_t sid, const std::
         if ( i.name == name && i.slot_num == slot_num )
             return NULL;
     }
-
     subComponents.emplace_back(
         ConfigComponent(sid, name, slot_num, type, this->weight, this->rank));
 
+    
     return &(subComponents.back());
 }
 

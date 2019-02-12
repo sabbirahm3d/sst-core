@@ -29,10 +29,17 @@ namespace SST {
 class SubComponent : public Module, public BaseComponent {
 
 public:
-	SubComponent(Component* parent) : BaseComponent(), parent(parent) {
-        my_info = parent->currentlyLoadingSubComponent;
-    };
-	virtual ~SubComponent() {};
+	SubComponent(Component* parent) :
+        BaseComponent(parent->getCurrentlyLoadingSubComponentID()),
+        parent(parent)
+        {}
+
+	SubComponent(ComponentId_t id) :
+        BaseComponent(id),
+        parent(getTrueComponent())
+        {}
+
+    virtual ~SubComponent() {};
 
     /** Used during the init phase.  The method will be called each phase of initialization.
      Initialization ends when no components have sent any data. */
@@ -47,7 +54,6 @@ public:
 protected:
     Component* const parent;
 
-    Component* getTrueComponent() const final override { return parent; }
     BaseComponent* getStatisticOwner() const final override {
         /* If our ID == parent ID, then we're a legacy subcomponent that doesn't own stats. */
         if ( this->getId() == parent->getId() )
@@ -55,9 +61,25 @@ protected:
         return const_cast<SubComponent*>(this);
     }
 
+    // Component* getTrueComponent() const final override {
+    //     TraceFunction trace(CALL_INFO_LONG);
+    //     // Walk up the parent tree until we hit the base Component.  We
+    //     // know we're the base Component when parent is NULL.
+    //     BaseComponent* ret = getParent();
+    //     while ( ret->getParent() != NULL ) ret = ret->getParent();
+    //     return static_cast<Component* const>(ret);
+    //     // ComponentInfo* info = my_info;
+    //     // while ( info->parent_info != NULL ) info = info->parent_info;
+    //     // return static_cast<Component* const>(info->component);
+    // }
+
+
+
+    
     /* Deprecate?   Old ELI style*/
     SubComponent* loadSubComponent(std::string type, Params& params) {
-        return parent->loadSubComponent(type, parent, params);
+        // return parent->loadSubComponent(type, parent, params);
+        return BaseComponent::loadSubComponent(type, getTrueComponent(), params);
     }
 
     // Does the statisticName exist in the ElementInfoStatistic

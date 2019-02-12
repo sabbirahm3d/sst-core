@@ -17,9 +17,9 @@
 // It is placed in this implementation file to provide a clean interface for 
 // the class Component.
 
-//template <typename T>
-//Statistic<T>* registerStatisticCore(std::string statName, std::string statSubId = 0)
-//{
+// template <typename T>
+// Statistic<T>* registerStatisticCore(std::string statName, std::string statSubId = 0)
+// {
     std::string                     fullStatName; 
     bool                            statGood = true;
     bool                            nameFound = false;
@@ -32,7 +32,6 @@
     std::string                     statTypeParam;
     Statistic<T>*                   statistic = NULL;
 
-
     // Build a name to report errors against
     fullStatName = StatisticBase::buildStatisticFullName(getName().c_str(), statName, statSubId);
 
@@ -42,11 +41,11 @@
         out.fatal(CALL_INFO, 1, "ERROR: Statistic %s - Cannot be registered after the Components have been wired up.  Statistics must be registered on Component creation.; exiting...\n", fullStatName.c_str());
     }
 
-    /* Create the statistic in the "owning" component.  That should just be us, 
-     * in the case of 'modern' subcomponents.  For legacy subcomponents, that will
-     * be the owning component.  We've got the ID of that component in 'my_info->getID()'
-     */
-    BaseComponent *owner = this->getStatisticOwner();
+    // /* Create the statistic in the "owning" component.  That should just be us, 
+    //  * in the case of 'modern' subcomponents.  For legacy subcomponents, that will
+    //  * be the owning component.  We've got the ID of that component in 'my_info->getID()'
+    //  */
+    // BaseComponent *owner = this->getStatisticOwner();
 
     // // Verify here that name of the stat is one of the registered
     // // names of the component's ElementInfoStatistic.
@@ -55,34 +54,50 @@
     //     exit(1);
     // }
 
-    // Check each entry in the StatEnableList (from the ConfigGraph via the 
-    // Python File) to see if this Statistic is enabled, then check any of 
-    // its critical parameters
-    for ( auto & si : *my_info->getStatEnableList() ) {
-        // First check to see if the any entry in the StatEnableList matches 
-        // the Statistic Name or the STATALLFLAG.  If so, then this Statistic
-        // will be enabled.  Then check any critical parameters   
-        if ((std::string(STATALLFLAG) == si.name) || (statName == si.name)) {
-            // Identify what keys are Allowed in the parameters
-            Params::KeySet_t allowedKeySet;
-            allowedKeySet.insert("type");
-            allowedKeySet.insert("rate");
-            allowedKeySet.insert("startat");
-            allowedKeySet.insert("stopat");
-            allowedKeySet.insert("resetOnRead");
-            si.params.pushAllowedKeys(allowedKeySet);
+    // Need to check my enabled statistics and if it's not there, then
+    // I need to check up my parent tree as long as insertStatistics
+    // is enabled.
+    ComponentInfo* curr_info = my_info;
+    ComponentInfo* next_info = my_info;
+    do {
+        curr_info = next_info;
+        // Check each entry in the StatEnableList (from the ConfigGraph via the 
+        // Python File) to see if this Statistic is enabled, then check any of 
+        // its critical parameters
 
-            // We found an acceptable name... Now check its critical Parameters
-            // Note: If parameter not found, defaults will be provided
-            statTypeParam = si.params.find<std::string>("type", "sst.AccumulatorStatistic");
-            statRateParam = si.params.find<std::string>("rate", "0ns");
-
-            collectionRate = UnitAlgebra(statRateParam);
-            statParams = si.params;
-            nameFound = true;
-            break;
+        // Only check for stat enables if I'm a not a component
+        // defined SubComponet, because component defined
+        // SubComponents don't have a stat enable list.
+        if ( !curr_info->isComponentDefined() ) {
+            for ( auto & si : *curr_info->getStatEnableList() ) {
+                // First check to see if the any entry in the StatEnableList matches 
+                // the Statistic Name or the STATALLFLAG.  If so, then this Statistic
+                // will be enabled.  Then check any critical parameters   
+                if ((std::string(STATALLFLAG) == si.name) || (statName == si.name)) {
+                    // Identify what keys are Allowed in the parameters
+                    Params::KeySet_t allowedKeySet;
+                    allowedKeySet.insert("type");
+                    allowedKeySet.insert("rate");
+                    allowedKeySet.insert("startat");
+                    allowedKeySet.insert("stopat");
+                    allowedKeySet.insert("resetOnRead");
+                    si.params.pushAllowedKeys(allowedKeySet);
+                    
+                    // We found an acceptable name... Now check its critical Parameters
+                    // Note: If parameter not found, defaults will be provided
+                    statTypeParam = si.params.find<std::string>("type", "sst.AccumulatorStatistic");
+                    statRateParam = si.params.find<std::string>("rate", "0ns");
+                    
+                    collectionRate = UnitAlgebra(statRateParam);
+                    statParams = si.params;
+                    nameFound = true;
+                    break;
+                }
+            }
         }
-    }
+        next_info = curr_info->parent_info;
+    } while ( curr_info->canInsertStatistics() );
+
 
     // Did we find a matching enable name?
     if (false == nameFound) {
@@ -111,7 +126,7 @@
 
     if (true == statGood) {
         // Instantiate the Statistic here defined by the type here
-        statistic = engine->createStatistic<T>(owner, statTypeParam, statName, statSubId, statParams);
+        statistic = engine->createStatistic<T>(curr_info->component, statTypeParam, statName, statSubId, statParams);
         if (NULL == statistic) {
             out.fatal(CALL_INFO, 1, "ERROR: Unable to instantiate Statistic %s; exiting...\n", fullStatName.c_str());
         }
@@ -143,7 +158,7 @@
 
         // Instantiate the Statistic here defined by the type here
         statTypeParam = "sst.NullStatistic";
-        statistic = engine->createStatistic<T>(owner, statTypeParam, statName, statSubId, statParams);
+        statistic = engine->createStatistic<T>(curr_info->component, statTypeParam, statName, statSubId, statParams);
         if (NULL == statistic) {
             statGood = false;
             out.fatal(CALL_INFO, 1, "ERROR: Unable to instantiate Null Statistic %s; exiting...\n", fullStatName.c_str());

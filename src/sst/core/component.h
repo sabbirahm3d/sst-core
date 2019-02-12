@@ -32,6 +32,8 @@ class SubComponent;
 class Component: public BaseComponent {
 public:
 
+    Component() : BaseComponent() {}
+    
     /** Constructor. Generally only called by the factory class.
         @param id Unique component ID
     */
@@ -103,9 +105,9 @@ public:
 
 protected:
     friend class SubComponent;
-    Component() {} // Unused, but previously available
+    // Component() {} // Unused, but previously available
 
-    Component* getTrueComponent() const final override { return const_cast<Component*>(this); }
+    // Component* getTrueComponent() const final override { return const_cast<Component*>(this); }
     BaseComponent* getStatisticOwner() const final override { return const_cast<Component*>(this); }
 
 
@@ -115,7 +117,7 @@ protected:
 private:
 
     /** Unique ID */
-    ComponentId_t   id;
+    // ComponentId_t   id;
 
 };
 

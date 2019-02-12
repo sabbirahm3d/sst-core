@@ -170,8 +170,8 @@ Factory::CreateComponent(ComponentId_t id,
     if ( lib != NULL ) {
         ComponentElementInfo* comp = lib->getComponent(elem);
         if ( comp != NULL ) {
-            LinkMap *lm = Simulation::getSimulation()->getComponentLinkMap(id);
-            lm->setAllowedPorts(&(comp->getPortnames()));
+            // LinkMap *lm = Simulation::getSimulation()->getComponentLinkMap(id);
+            // lm->setAllowedPorts(&(comp->getPortnames()));
 
             loadingComponentType = type;    
             params.pushAllowedKeys(comp->getParamNames());
@@ -606,6 +606,55 @@ Factory::CreateSubComponent(std::string type, Component* comp, Params& params)
     return NULL;
 }
 
+bool
+Factory::doesSubComponentExist(std::string type)
+{
+    std::string elemlib, elem;
+    std::tie(elemlib, elem) = parseLoadName(type);
+
+    // ensure library is already loaded...
+    requireLibrary(elemlib);
+
+    std::lock_guard<std::recursive_mutex> lock(factoryMutex);
+    // Check to see if library is loaded into new
+    // ElementLibraryDatabase
+    LibraryInfo* lib = ElementLibraryDatabase::getLibraryInfo(elemlib);
+    if ( lib != NULL ) {
+        SubComponentElementInfo* subcomp = lib->getSubComponent(elem);
+        if ( subcomp != NULL ) {
+            return true;
+        }
+    }
+
+    // If we get to here, element doesn't exist
+    return false;
+}
+
+
+// SubComponentBuilderBase*
+// Factory::getSubComponentBuilder(std::string type)
+// {
+//     std::string elemlib, elem;
+//     std::tie(elemlib, elem) = parseLoadName(type);
+
+//     // ensure library is already loaded...
+//     requireLibrary(elemlib);
+
+//     std::lock_guard<std::recursive_mutex> lock(factoryMutex);
+//     // Check to see if library is loaded into new
+//     // ElementLibraryDatabase
+//     LibraryInfo* lib = ElementLibraryDatabase::getLibraryInfo(elemlib);
+//     if ( lib != NULL ) {
+//         SubComponentElementInfo* subcomp = lib->getSubComponent(elem);
+//         if ( subcomp != NULL ) {
+//             return subcomp->getSubComponentBuilder();
+//         }
+//     }
+
+//     // If we get to here, element doesn't exist
+//     out.fatal(CALL_INFO, -1,"can't find requested subcomponent %s.\n ", type.c_str());
+//     return NULL;
+// }
 
 void
 Factory::RequireEvent(std::string eventname)

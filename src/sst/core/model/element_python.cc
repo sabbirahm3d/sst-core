@@ -14,7 +14,10 @@
 #include "sst_config.h"
 
 // Python header files
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-register"
 #include <Python.h>
+#pragma clang diagnostic pop
 #include <traceback.h>
 #include <frameobject.h>
 

@@ -88,6 +88,8 @@ private:
 
 class SSTInfoElement_Outputter {
 public:
+    virtual ~SSTInfoElement_Outputter() {}
+
     /** Output the Parameter Information. 
      * @param Index The Index of the Parameter.
      */
@@ -99,6 +101,7 @@ public:
      */
     virtual void outputXML(int Index, TiXmlNode* XMLParentElement) = 0;
 
+    
 protected:
     void xmlComment(TiXmlNode* owner, const char* fmt...);
 };
@@ -106,6 +109,8 @@ protected:
 class SSTInfoElement_BaseInfo : public SSTInfoElement_Outputter {
 public:
 
+    virtual ~SSTInfoElement_BaseInfo() {}
+    
     template <typename T>
     SSTInfoElement_BaseInfo( const T *eli ) :
         m_name(eli->name), m_desc(fs(eli->description))

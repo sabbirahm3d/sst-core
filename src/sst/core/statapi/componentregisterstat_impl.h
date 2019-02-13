@@ -32,8 +32,29 @@
     std::string                     statTypeParam;
     Statistic<T>*                   statistic = NULL;
 
+
+    // First check to see if this is an "inserted" statistic that has
+    // already been created.
+
+    // Don't need to look at my cache, that was already done.  Start
+    // with my parent.
+    ComponentInfo* curr_info = my_info;
+    while (curr_info->canInsertStatistics() ) {
+        // Check to see if this was already created, and
+        // if so return the cached copy
+        StatisticBase* prevStat = StatisticProcessingEngine::getInstance()->isStatisticRegisteredWithEngine<T>(
+            curr_info->parent_info->getName(), curr_info->parent_info->getID(), statName, statSubId);
+        if (NULL != prevStat) {
+            // Dynamic cast the base stat to the expected type
+            return dynamic_cast<Statistic<T>*>(prevStat);
+        }
+        curr_info = curr_info->parent_info;
+    }
+
+
     // Build a name to report errors against
     fullStatName = StatisticBase::buildStatisticFullName(getName().c_str(), statName, statSubId);
+
 
     // Make sure that the wireup has not been completed
     if (true == getSimulation()->isWireUpFinished()) {
@@ -57,7 +78,7 @@
     // Need to check my enabled statistics and if it's not there, then
     // I need to check up my parent tree as long as insertStatistics
     // is enabled.
-    ComponentInfo* curr_info = my_info;
+    curr_info = my_info;
     ComponentInfo* next_info = my_info;
     do {
         curr_info = next_info;

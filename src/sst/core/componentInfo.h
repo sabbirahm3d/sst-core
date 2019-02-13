@@ -190,8 +190,8 @@ public:
 
     inline BaseComponent* getComponent() const { return component; }
 
-    inline LinkMap* getLinkMap() const { return link_map; }
-
+    LinkMap* getLinkMap();
+    
     inline const Params* getParams() const { return params; }
 
     // inline std::map<std::string, ComponentInfo>& getSubComponents() { return subComponents; }

@@ -146,6 +146,13 @@ ComponentInfo::~ComponentInfo() {
     }
 }
 
+LinkMap*
+ComponentInfo::getLinkMap() {
+    if ( link_map == NULL ) link_map = new LinkMap();
+    return link_map;
+}
+
+
 ComponentId_t
 ComponentInfo::addComponentDefinedSubComponent(ComponentInfo* parent_info, const std::string& type, const std::string& slot_name,
                                                int slot_num, uint64_t share_flags)

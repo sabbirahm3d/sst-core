@@ -180,7 +180,10 @@ public:
     
     inline ComponentId_t getID() const { return id; }
 
-    inline const std::string& getName() const { return name; }
+    inline const std::string& getName() const {
+        if ( name.empty() ) return parent_info->getName();
+        return name;
+    }
 
     inline const std::string& getSlotName() const { return slot_name; }
 

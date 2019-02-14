@@ -261,9 +261,8 @@ public:
 		if ( NULL != i ) {
 			return i;
 		} else {
-            printf("Simulation::getComponentInfo() couldn't find component with id = %llx\n", id);
-            printf("Simulation::getComponentInfo() couldn't find component with id = %" PRIu64 "\n", id);
-            exit(1);
+            sim_output.fatal(CALL_INFO,1,"Simulation::getComponentInfo() couldn't find component with id = 0x%" PRIx64 " (%" PRIu64 ")\n", id, id);
+            return NULL;
 		}
     }
 

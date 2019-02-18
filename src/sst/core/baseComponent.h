@@ -400,6 +400,7 @@ private:
     SubComponent* loadNamedSubComponent(std::string name, int slot_num);
     SubComponent* loadNamedSubComponent(std::string name, int slot_num, Params& params);
 
+    void setDefaultTimeBaseForLinks(TimeConverter* tc);
 
     template <class T, class... ARGS>
     T* loadPythonDefinedSubComponentByIndex(std::string slot_name, int slot_num, int share_flags, ARGS... args) {

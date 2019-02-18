@@ -60,6 +60,28 @@ BaseComponent::~BaseComponent()
 {
 }
 
+void
+BaseComponent::setDefaultTimeBaseForLinks(TimeConverter* tc) {
+    LinkMap* myLinks = my_info->getLinkMap();
+    if (NULL != myLinks) {
+        for ( std::pair<std::string,Link*> p : myLinks->getLinkMap() ) {
+            if ( NULL == p.second->getDefaultTimeBase() ) {
+                p.second->setDefaultTimeBase(tc);
+            }
+        }
+    }
+
+    // Need to look through my child subcomponents and for all
+    // anonymously loaded subcomponents, set the default time base for
+    // any links they have.  These links would have been moved from
+    // the parent to the child.
+    for ( auto &sub : my_info->subComponents ) {
+        if ( sub.second.isAnonymousSubComponent() ) {
+            sub.second.component->setDefaultTimeBaseForLinks(tc);
+        }
+    }
+    
+}
 
 
 TimeConverter* BaseComponent::registerClock( std::string freq, Clock::HandlerBase* handler, bool regAll) {
@@ -68,15 +90,8 @@ TimeConverter* BaseComponent::registerClock( std::string freq, Clock::HandlerBas
     // if regAll is true set tc as the default for the component and
     // for all the links
     if ( regAll ) {
-        LinkMap* myLinks = my_info->getLinkMap();
-        if (NULL != myLinks) {
-            for ( std::pair<std::string,Link*> p : myLinks->getLinkMap() ) {
-                if ( NULL == p.second->getDefaultTimeBase() ) {
-                    p.second->setDefaultTimeBase(tc);
-                }
-            }
-        }
-	defaultTimeBase = tc;
+        setDefaultTimeBaseForLinks(tc);
+        defaultTimeBase = tc;
     }
     return tc;
 }
@@ -87,15 +102,8 @@ TimeConverter* BaseComponent::registerClock( const UnitAlgebra& freq, Clock::Han
     // if regAll is true set tc as the default for the component and
     // for all the links
     if ( regAll ) {
-        LinkMap* myLinks = my_info->getLinkMap();
-        if (NULL != myLinks) {
-            for ( std::pair<std::string,Link*> p : myLinks->getLinkMap() ) {
-                if ( NULL == p.second->getDefaultTimeBase() ) {
-                    p.second->setDefaultTimeBase(tc);
-                }
-            }
-        }
-	defaultTimeBase = tc;
+        setDefaultTimeBaseForLinks(tc);
+        defaultTimeBase = tc;
     }
     return tc;
 }
@@ -126,15 +134,8 @@ TimeConverter* BaseComponent::registerTimeBase( std::string base, bool regAll) {
     // if regAll is true set tc as the default for the component and
     // for all the links
     if ( regAll ) {
-        LinkMap* myLinks = my_info->getLinkMap();
-        if (NULL != myLinks) {
-            for ( std::pair<std::string,Link*> p : myLinks->getLinkMap() ) {
-                if ( NULL == p.second->getDefaultTimeBase() ) {
-                    p.second->setDefaultTimeBase(tc);
-                }
-            }
-        }
-	defaultTimeBase = tc;
+        setDefaultTimeBaseForLinks(tc);
+        defaultTimeBase = tc;
     }
     return tc;
 }
@@ -227,6 +228,13 @@ BaseComponent::configureLink(std::string name, TimeConverter* time_base, Event::
                     my_info->link_map = myLinks;
                 }
                 myLinks->insertLink(name,tmp);
+                // Need to set the link's defaultTimeBase to NULL,
+                // except in the case of this being an Anonymously
+                // loadeed SubComponent, then for backward
+                // compatibility, we leave it as is.
+                if ( !my_info->isAnonymousSubComponent() ) {
+                    tmp->setDefaultTimeBase(NULL);
+                }
             }
         }
     }
@@ -346,7 +354,8 @@ BaseComponent::loadSubComponent(std::string type, Component* comp, Params& param
     // /* By "magic", the new component will steal ownership of this pointer */
     // currentlyLoadingSubComponent = sub_info;
     ComponentId_t cid = comp->currentlyLoadingSubComponentID;
-    comp->currentlyLoadingSubComponentID = my_info->addComponentDefinedSubComponent(my_info, type, "ANONYMOUS", 0, 0xFF);
+    comp->currentlyLoadingSubComponentID = my_info->addComponentDefinedSubComponent(my_info, type, "ANONYMOUS", 0,
+          ComponentInfo::SHARE_PORTS | ComponentInfo::SHARE_STATS | ComponentInfo::INSERT_STATS | ComponentInfo::IS_ANONYMOUS_SUBCOMPONENT);
     
     SubComponent* ret = Factory::getFactory()->CreateSubComponent(type,comp,params);
     comp->currentlyLoadingSubComponentID = cid;

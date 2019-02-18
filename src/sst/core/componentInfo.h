@@ -43,6 +43,9 @@ public:
     static const int SHARE_STATS = 0x2;
     static const int INSERT_STATS = 0x4;
 
+    // Temporary, only for backward compatibility with loadSubComponent
+    static const int IS_ANONYMOUS_SUBCOMPONENT = 0x32;
+
     static const int SHARE_NONE = 0x0;
 
 private:
@@ -141,6 +144,10 @@ private:
     
     bool canInsertStatistics() {
         return (share_flags & INSERT_STATS) != 0;
+    }
+    
+    bool isAnonymousSubComponent() {
+        return (share_flags & IS_ANONYMOUS_SUBCOMPONENT) != 0;
     }
     
 

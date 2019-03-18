@@ -124,16 +124,21 @@ bool Factory::isPortNameValid(const std::string &type, const std::string port_na
     // ElementLibraryDatabase
     LibraryInfo* lib = ElementLibraryDatabase::getLibraryInfo(elemlib);
     if ( lib != NULL ) {
-        ComponentElementInfo* comp = lib->getComponent(elem);
+        BaseComponentElementInfo* comp = lib->getBaseComponentElementInfo(elem);
         if ( comp != NULL ) {
             portNames = &(comp->getPortnames());
         }
-        else {
-            SubComponentElementInfo* subcomp = lib->getSubComponent(elem);
-            if ( subcomp != NULL ) {
-                portNames = &(subcomp->getPortnames());
-            }
-        }
+        
+        // ComponentElementInfo* comp = lib->getComponent(elem);
+        // if ( comp != NULL ) {
+        //     portNames = &(comp->getPortnames());
+        // }
+        // else {
+        //     SubComponentElementInfo* subcomp = lib->getSubComponent(elem);
+        //     if ( subcomp != NULL ) {
+        //         portNames = &(subcomp->getPortnames());
+        //     }
+        // }
     }
     
     std::string tmp = elemlib + "." + elem;
@@ -149,6 +154,54 @@ bool Factory::isPortNameValid(const std::string &type, const std::string port_na
     }
     return false;
 }
+
+const Params::KeySet_t&
+Factory::getParamNames(const std::string &type)
+{
+    // This is only needed so we can return something in the error
+    // case.  It is never used.
+    static Params::KeySet_t empty_keyset;
+
+    std::string elemlib, elem;
+    std::tie(elemlib, elem) = parseLoadName(type);
+    // ensure library is already loaded...
+    if (loaded_libraries.find(elemlib) == loaded_libraries.end()) {
+        findLibrary(elemlib);
+    }
+    
+    // Check to see if library is loaded into new
+    // ElementLibraryDatabase
+    LibraryInfo* lib = ElementLibraryDatabase::getLibraryInfo(elemlib);
+    if ( lib != NULL ) {
+        BaseParamsElementInfo* comp = lib->getBaseParamsElementInfo(elem);
+        if ( comp != NULL ) {
+            return comp->getParamNames();
+        }
+        
+        // ComponentElementInfo* comp = lib->getComponent(elem);
+        // if ( comp != NULL ) {
+        //     return comp->getParamNames();
+        // }
+        // else {
+        //     SubComponentElementInfo* subcomp = lib->getSubComponent(elem);
+        //     if ( subcomp != NULL ) {
+        //         return subcomp->getParamNames();
+        //     }
+        //     else {
+        //         ModuleElementInfo* module = lib->getModule(elem);
+        //         if ( module != NULL ) {
+        //             return module->getParamNames();
+        //         }
+        //     }
+        // }
+    }
+
+    // If we made it to here we didn't find an element that has params
+    // with the given name
+    out.fatal(CALL_INFO, -1,"can't find requested element %s.\n ", type.c_str());
+    return empty_keyset;
+}
+
 
 
 Component*
@@ -318,7 +371,7 @@ Factory::DoesComponentInfoStatisticNameExist(const std::string& type, const std:
     // ElementLibraryDatabase
     LibraryInfo* lib = ElementLibraryDatabase::getLibraryInfo(elemlib);
     if ( lib != NULL ) {
-        ComponentElementInfo* comp = lib->getComponent(elem);
+        BaseComponentElementInfo* comp = lib->getBaseComponentElementInfo(elem);
         if ( comp != NULL ) {
             for ( auto item : comp->getStatnames() ) {
                 if ( statisticName == item ) {
@@ -331,45 +384,45 @@ Factory::DoesComponentInfoStatisticNameExist(const std::string& type, const std:
 
     
     // If we get to here, element doesn't exist
-    out.fatal(CALL_INFO, -1,"can't find requested component %s.\n ", type.c_str());
+    out.fatal(CALL_INFO, -1,"can't find requested element %s in call to Factory::DoesComponentInfoStatisticNameExist.\n ", type.c_str());
     return false;
 }
 
-bool 
-Factory::DoesSubComponentInfoStatisticNameExist(const std::string& type, const std::string& statisticName)
-{
-    std::string compTypeToLoad = type;
-    if (true == type.empty()) { 
-        compTypeToLoad = loadingComponentType;
-    }
+// bool 
+// Factory::DoesSubComponentInfoStatisticNameExist(const std::string& type, const std::string& statisticName)
+// {
+//     std::string compTypeToLoad = type;
+//     if (true == type.empty()) { 
+//         compTypeToLoad = loadingComponentType;
+//     }
     
-    std::string elemlib, elem;
-    std::tie(elemlib, elem) = parseLoadName(compTypeToLoad);
+//     std::string elemlib, elem;
+//     std::tie(elemlib, elem) = parseLoadName(compTypeToLoad);
 
-    // ensure library is already loaded...
-    requireLibrary(elemlib);
+//     // ensure library is already loaded...
+//     requireLibrary(elemlib);
 
-    std::lock_guard<std::recursive_mutex> lock(factoryMutex);
+//     std::lock_guard<std::recursive_mutex> lock(factoryMutex);
 
-    // Check to see if library is loaded into new
-    // ElementLibraryDatabase
-    LibraryInfo* lib = ElementLibraryDatabase::getLibraryInfo(elemlib);
-    if ( lib != NULL ) {
-        SubComponentElementInfo* subcomp = lib->getSubComponent(elem);
-        if ( subcomp != NULL ) {
-            for ( auto item : subcomp->getStatnames() ) {
-                if ( statisticName == item ) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
+//     // Check to see if library is loaded into new
+//     // ElementLibraryDatabase
+//     LibraryInfo* lib = ElementLibraryDatabase::getLibraryInfo(elemlib);
+//     if ( lib != NULL ) {
+//         SubComponentElementInfo* subcomp = lib->getSubComponent(elem);
+//         if ( subcomp != NULL ) {
+//             for ( auto item : subcomp->getStatnames() ) {
+//                 if ( statisticName == item ) {
+//                     return true;
+//                 }
+//             }
+//             return false;
+//         }
+//     }
 
-    // If we get to here, element doesn't exist
-    out.fatal(CALL_INFO, -1,"can't find requested subcomponent %s.\n ", type.c_str());
-    return false;
-}
+//     // If we get to here, element doesn't exist
+//     out.fatal(CALL_INFO, -1,"can't find requested subcomponent %s.\n ", type.c_str());
+//     return false;
+// }
 
 uint8_t 
 Factory::GetComponentInfoStatisticEnableLevel(const std::string& type, const std::string& statisticName)

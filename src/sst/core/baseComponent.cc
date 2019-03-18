@@ -48,10 +48,12 @@ namespace SST {
 BaseComponent::BaseComponent(ComponentId_t id) :
     sim(Simulation::getSimulation()),
     my_info(Simulation::getSimulation()->getComponentInfo(id)),
-    currentlyLoadingSubComponent(NULL),
-    defaultTimeBase(NULL)
+    currentlyLoadingSubComponent(NULL)
 {
-    my_info->component = this;
+    // If the component field is already set, then this is a direct
+    // load subcomponent, and we don't need to reset it.
+    if ( my_info->component == NULL )
+        my_info->component = this;
 }
 
 
@@ -65,7 +67,8 @@ BaseComponent::setDefaultTimeBaseForLinks(TimeConverter* tc) {
     LinkMap* myLinks = my_info->getLinkMap();
     if (NULL != myLinks) {
         for ( std::pair<std::string,Link*> p : myLinks->getLinkMap() ) {
-            if ( NULL == p.second->getDefaultTimeBase() ) {
+            // if ( NULL == p.second->getDefaultTimeBase() ) {
+            if ( NULL == p.second->getDefaultTimeBase() && p.second->isConfigured() ) {
                 p.second->setDefaultTimeBase(tc);
             }
         }
@@ -83,6 +86,13 @@ BaseComponent::setDefaultTimeBaseForLinks(TimeConverter* tc) {
     
 }
 
+void
+BaseComponent::pushValidParams(Params& params, const std::string& type)
+{
+    const Params::KeySet_t& keyset = Factory::getFactory()->getParamNames(type);
+    params.pushAllowedKeys(keyset);
+}
+
 
 TimeConverter* BaseComponent::registerClock( std::string freq, Clock::HandlerBase* handler, bool regAll) {
     TimeConverter* tc = getSimulation()->registerClock(freq, handler, CLOCKPRIORITY);
@@ -91,7 +101,7 @@ TimeConverter* BaseComponent::registerClock( std::string freq, Clock::HandlerBas
     // for all the links
     if ( regAll ) {
         setDefaultTimeBaseForLinks(tc);
-        defaultTimeBase = tc;
+        my_info->defaultTimeBase = tc;
     }
     return tc;
 }
@@ -103,7 +113,7 @@ TimeConverter* BaseComponent::registerClock( const UnitAlgebra& freq, Clock::Han
     // for all the links
     if ( regAll ) {
         setDefaultTimeBaseForLinks(tc);
-        defaultTimeBase = tc;
+        my_info->defaultTimeBase = tc;
     }
     return tc;
 }
@@ -135,7 +145,7 @@ TimeConverter* BaseComponent::registerTimeBase( std::string base, bool regAll) {
     // for all the links
     if ( regAll ) {
         setDefaultTimeBaseForLinks(tc);
-        defaultTimeBase = tc;
+        my_info->defaultTimeBase = tc;
     }
     return tc;
 }
@@ -248,7 +258,7 @@ BaseComponent::configureLink(std::string name, TimeConverter* time_base, Event::
         }
         tmp->setFunctor(handler);
         if ( NULL != time_base ) tmp->setDefaultTimeBase(time_base);
-        else tmp->setDefaultTimeBase(defaultTimeBase);
+        else tmp->setDefaultTimeBase(my_info->defaultTimeBase);
         tmp->setAsConfigured();
 #ifdef __SST_DEBUG_EVENT_TRACKING__
         tmp->setSendingComponentInfo(my_info->getName(), my_info->getType(), name);
@@ -282,7 +292,7 @@ BaseComponent::addSelfLink(std::string name)
 
     Link* link = new SelfLink();
     // Set default time base to the component time base
-    link->setDefaultTimeBase(defaultTimeBase);
+    link->setDefaultTimeBase(my_info->defaultTimeBase);
     myLinks->insertLink(name,link);
 
 }
@@ -329,6 +339,11 @@ SimTime_t BaseComponent::getCurrentSimTimeMilli() const {
     return getCurrentSimTime(getSimulation()->getTimeLord()->getMilli());
 }
 
+bool BaseComponent::doesComponentInfoStatisticExist(const std::string &statisticName) const
+{
+    const std::string& type = my_info->getType();
+    return Factory::getFactory()->DoesComponentInfoStatisticNameExist(type, statisticName);
+}
 
 
 Module*

@@ -27,6 +27,7 @@ class BaseComponent;
 
 class ConfigComponent;
 class ComponentInfoMap;
+class TimeConverter;
 
 namespace Statistics {
 class StatisticInfo;
@@ -106,6 +107,8 @@ private:
     */
     const Params *params;
 
+    TimeConverter* defaultTimeBase;
+    
     statEnableList_t * enabledStats;
     std::vector<double> coordinates;
 

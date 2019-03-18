@@ -85,9 +85,10 @@ std::pair<bool, std::string> ConfigStatGroup::verifyStatsAndComponents(const Con
         }
         for ( auto & statKV : statMap ) {
 
-            bool ok = SUBCOMPONENT_ID_MASK(comp->id) == 0 ?
-                Factory::getFactory()->DoesComponentInfoStatisticNameExist(comp->type, statKV.first) :
-                Factory::getFactory()->DoesSubComponentInfoStatisticNameExist(comp->type, statKV.first);
+            // bool ok = SUBCOMPONENT_ID_MASK(comp->id) == 0 ?
+            //     Factory::getFactory()->DoesComponentInfoStatisticNameExist(comp->type, statKV.first) :
+            //     Factory::getFactory()->DoesSubComponentInfoStatisticNameExist(comp->type, statKV.first);
+            bool ok = Factory::getFactory()->DoesComponentInfoStatisticNameExist(comp->type, statKV.first);
 
             if ( !ok ) {
                 std::stringstream ss;

@@ -27,6 +27,7 @@ ComponentInfo::ComponentInfo(ComponentId_t id, const std::string &name) :
     link_map(NULL),
     component(NULL),
     params(NULL),
+    defaultTimeBase(NULL),
     enabledStats(NULL),
     coordinates(3, 0.0),
     subIDIndex(1),
@@ -64,6 +65,7 @@ ComponentInfo::ComponentInfo(ComponentId_t id, ComponentInfo* parent_info, const
     link_map(NULL),
     component(NULL),
     params(/*new Params()*/ NULL),
+    defaultTimeBase(NULL),
     enabledStats(NULL),
     coordinates(parent_info->coordinates),
     subIDIndex(1),
@@ -83,6 +85,7 @@ ComponentInfo::ComponentInfo(ConfigComponent *ccomp, const std::string& name, Co
     link_map(link_map),
     component(NULL),
     params(&ccomp->params),
+    defaultTimeBase(NULL),
     enabledStats(&ccomp->enabledStatistics),
     coordinates(ccomp->coords),
     subIDIndex(1),
@@ -122,6 +125,7 @@ ComponentInfo::ComponentInfo(ComponentInfo &&o) :
     component(o.component), 
     subComponents(std::move(o.subComponents)),
     params(o.params),
+    defaultTimeBase(o.defaultTimeBase),
     enabledStats(o.enabledStats),
     coordinates(o.coordinates),
     subIDIndex(o.subIDIndex),
@@ -132,6 +136,7 @@ ComponentInfo::ComponentInfo(ComponentInfo &&o) :
     o.parent_info = NULL;
     o.link_map = NULL;
     o.component = NULL;
+    o.defaultTimeBase = NULL;
 }
 
 

@@ -52,6 +52,8 @@ class SubComponentSlotInfo;
 class BaseComponent {
 
     friend class SubComponentSlotInfo;
+    // friend class Component;
+    friend class SubComponent;
 
 public:
 
@@ -198,7 +200,7 @@ public:
     SimTime_t getCurrentSimTime(TimeConverter *tc) const;
     /** return the time since the simulation began in the default timebase */
     inline SimTime_t getCurrentSimTime()  const{
-        return getCurrentSimTime(defaultTimeBase);
+        return getCurrentSimTime(my_info->defaultTimeBase);
     }
     /** return the time since the simulation began in timebase specified
         @param base Timebase frequency in SI Units */
@@ -212,14 +214,14 @@ public:
     SimTime_t getCurrentSimTimeMilli() const;
 
 
-    bool isStatisticShared(const std::string& statName, bool first = true) {
-        if ( !first ) {
+    bool isStatisticShared(const std::string& statName, bool include_me = false) {
+        if ( include_me ) {
             if ( doesComponentInfoStatisticExist(statName)) {
                 return true;
             }
         }
         if ( my_info->sharesStatistics() ) {
-            return my_info->parent_info->component->isStatisticShared(statName, false);
+            return my_info->parent_info->component->isStatisticShared(statName, true);
         }
         else {
             return false;
@@ -321,6 +323,18 @@ public:
         
     // }
 
+    // When you direct load, the subcomponent does not need any ELI
+    // information and if it has any, it will be ignored.  The
+    // subcomponent will be loaded as if it were part of the part
+    // BaseComponent and will share all that components ELI
+    // information.
+    template <class T, class... ARGS>
+    T* directLoadSubComponent(ARGS... args) {
+        T* ret = new T(my_info->id, args...);
+        return ret;
+    }
+
+    
 
     template <class T, class... ARGS>
     T* loadComponentDefinedSubComponent(std::string type, std::string slot_name, int slot_num, uint64_t share_flags, Params& params, ARGS... args) {
@@ -334,7 +348,10 @@ public:
         
         // Check to see if this is documented, and if so, try to load it through the ElementBuilder
         if ( doesSubComponentExist(sub_info->getType()) ) {            
+            // Need to set the valid params
+            pushValidParams(params, type);
             auto ret = T::ELI_ElementBuilder.build(sub_info->getType(),sub_info->id,params,args...);
+            params.popAllowedKeys();
             return ret;
         }
 
@@ -402,6 +419,8 @@ private:
 
     void setDefaultTimeBaseForLinks(TimeConverter* tc);
 
+    void pushValidParams(Params& params, const std::string& type);
+    
     template <class T, class... ARGS>
     T* loadPythonDefinedSubComponentByIndex(std::string slot_name, int slot_num, int share_flags, ARGS... args) {
         // Check to see if the slot exists
@@ -413,15 +432,15 @@ private:
         // Check to see if this is documented, and if so, try to load it through the ElementBuilder
         if ( doesSubComponentExist(sub_info->getType()) ) {
             Params myParams;
-            if ( sub_info->getParams() != NULL )
+            if ( sub_info->getParams() != NULL ) {
                 myParams.insert(*sub_info->getParams());
-
+            }
             
+            pushValidParams(myParams, sub_info->getType());
             auto ret = T::ELI_ElementBuilder.build(sub_info->getType(),sub_info->id,myParams,args...);
+            myParams.popAllowedKeys();
 
             return ret;
-
-
         }
 
         return nullptr;        
@@ -452,7 +471,11 @@ protected:
     
     /** Manually set the default detaulTimeBase */
     void setDefaultTimeBase(TimeConverter *tc) {
-        defaultTimeBase = tc;
+        my_info->defaultTimeBase = tc;
+    }
+
+    TimeConverter* getDefaultTimeBase() {
+        return my_info->defaultTimeBase;
     }
 
     bool doesSubComponentExist(std::string type);
@@ -466,7 +489,7 @@ protected:
     Simulation* getSimulation() const { return sim; }
 
     // Does the statisticName exist in the ElementInfoStatistic
-    virtual bool doesComponentInfoStatisticExist(const std::string &statisticName) const = 0;
+    bool doesComponentInfoStatisticExist(const std::string &statisticName) const;
     // Return the EnableLevel for the statisticName from the ElementInfoStatistic
     uint8_t getComponentInfoStatisticEnableLevel(const std::string &statisticName) const;
     // Return the Units for the statisticName from the ElementInfoStatistic
@@ -482,17 +505,18 @@ protected:
 
 protected:
     Simulation *sim;
-    ComponentInfo* my_info;
-    ComponentInfo* currentlyLoadingSubComponent;
-    ComponentId_t currentlyLoadingSubComponentID;
 
-    /** Timebase used if no other timebase is specified for calls like
-        BaseComponent::getCurrentSimTime(). Often set by BaseComponent::registerClock()
-        function */
-    TimeConverter* defaultTimeBase;
 
 
 private:
+
+    ComponentInfo* my_info;
+    ComponentInfo* currentlyLoadingSubComponent;
+    ComponentId_t currentlyLoadingSubComponentID;
+    /** Timebase used if no other timebase is specified for calls like
+        BaseComponent::getCurrentSimTime(). Often set by BaseComponent::registerClock()
+        function */
+    // TimeConverter* defaultTimeBase;
 
     void addSelfLink(std::string name);
     Link* getLinkFromParentSharedPort(const std::string& port);
@@ -527,6 +551,9 @@ protected:
 
         return comp->loadNamedSubComponent(slot_name, slot_num, params);
     }    
+
+
+
     
 public:
     ~SubComponentSlotInfo() {}

@@ -87,8 +87,88 @@ NO_VARIABLE:
         }
     };
 
+
+    /** Find a Parameter value in the set, and return its value as a type T.
+     * Type T must be either a basic numeric type (including bool) ,
+     * a std::string, or a class that has a constructor with a std::string
+     * as its only parameter.  This class uses SST::Core::from_string to
+     * do the conversion.
+     * @param k - Parameter name
+     * @param default_value - Default value to return if parameter isn't found
+     * @param found - set to true if the the parameter was found
+     * @throw std::invalid_argument If value in (key, value) can't be
+     * converted to type T, an invalid_argument exception is thrown.
+     */
+    template <class T>
+    inline T find_impl(const std::string &k, T default_value, bool &found) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
+        verifyParam(k);
+        // const_iterator i = data.find(getKey(k));
+        const std::string& value = getString(k,found);
+        // if (i == data.end()) {
+            // found = false;
+        if ( !found ) {
+            return default_value;
+        }
+        else {
+            // found = true;
+            try {
+                // return SST::Core::from_string<T>(i->second);
+                return SST::Core::from_string<T>(value);
+            }
+            catch ( const std::invalid_argument& e ) {
+                std::string msg = "Params::find(): No conversion for value: key = " + k + ", value =  " + value +
+                    ".  Original error: " + e.what();
+                std::invalid_argument t(msg);
+                throw t;
+            }
+        }        
+    }
+
+    /** Find a Parameter value in the set, and return its value as a type T.
+     * Type T must be either a basic numeric type (including bool) ,
+     * a std::string, or a class that has a constructor with a std::string
+     * as its only parameter.  This class uses SST::Core::from_string to
+     * do the conversion.
+     * @param k - Parameter name
+     * @param default_value - Default value to return if parameter isn't found,
+     *   specified as a string
+     * @param found - set to true if the the parameter was found
+     */
+    template <class T>
+    inline T find_impl(const std::string &k, std::string default_value, bool &found) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
+        verifyParam(k);
+        const std::string& value = getString(k,found);
+        if ( !found ) {
+            try {
+                return SST::Core::from_string<T>(default_value);
+            }
+            catch ( const std::invalid_argument& e ) {
+                std::string msg = "Params::find(): Invalid default value specified: key = " + k + ", value =  " + default_value +
+                    ".  Original error: " + e.what();
+                std::invalid_argument t(msg);
+                throw t;
+            }
+        }
+        else {
+            found = true;
+            try {
+                return SST::Core::from_string<T>(value);
+            }
+            catch ( const std::invalid_argument& e ) {
+                std::string msg = "Params::find(): No conversion for value: key = " + k + ", value =  " + value +
+                    ".  Original error: " + e.what();
+                std::invalid_argument t(msg);
+                throw t;
+            }
+        }        
+    }
+    
     typedef std::map<uint32_t, std::string>::const_iterator const_iterator; /*!< Const Iterator type */
 
+    const std::string& getString(const std::string& name, bool& found) const;
+    
 public:
     typedef std::string key_type;  /*!< Type of key (string) */
     typedef std::set<key_type, KeyCompare> KeySet_t; /*!< Type of a set of keys */
@@ -108,16 +188,16 @@ public:
     static void enableVerify() { g_verify_enabled = true; };
 
     /** Returns the size of the Params.  */
-    size_t size() const { return data.size(); }
+    size_t size() const;// { return data.size(); }
     /** Returns true if the Params is empty.  (Thus begin() would equal end().) */
-    bool empty() const { return data.empty(); }
+    bool empty() const;// { return data.empty(); }
 
 
     /** Create a new, empty Params */
-    Params() : data(), verify_enabled(true) { }
+    Params();// : data(), verify_enabled(true) { }
 
     /** Create a copy of a Params object */
-    Params(const Params& old) : data(old.data), allowedKeys(old.allowedKeys), verify_enabled(old.verify_enabled) { }
+    Params(const Params& old);// : data(old.data), allowedKeys(old.allowedKeys), verify_enabled(old.verify_enabled) { }
 
     virtual ~Params() { }
 
@@ -127,17 +207,20 @@ public:
      *
      *  All the elements of old are copied,
      */
-    Params& operator=(const Params& old) {
+    Params& operator=(const Params& old);
+    /*
+    {
         data = old.data;
         verify_enabled = old.verify_enabled;
         allowedKeys = old.allowedKeys;
         return *this;
     }
+    */
 
     /**
      *  Erases all elements.
      */
-    void clear() { data.clear(); }
+    void clear();// { data.clear(); }
 
 
     /**
@@ -147,7 +230,7 @@ public:
      *  (either 1 or 0).
      *
      */
-    size_t count(const key_type& k) { return data.count(getKey(k)); }
+    size_t count(const key_type& k);// { return data.count(getKey(k)); }
 
     /** Find a Parameter value in the set, and return its value as a type T.
      * Type T must be either a basic numeric type (including bool) ,
@@ -161,24 +244,31 @@ public:
      * converted to type T, an invalid_argument exception is thrown.
      */
     template <class T>
-    T find(const std::string &k, T default_value, bool &found) const {
-        verifyParam(k);
-        const_iterator i = data.find(getKey(k));
-        if (i == data.end()) {
-            found = false;
-            return default_value;
-        } else {
-            found = true;
-            try {
-                return SST::Core::from_string<T>(i->second);
-            }
-            catch ( const std::invalid_argument& e ) {
-                std::string msg = "Params::find(): No conversion for value: key = " + k + ", value =  " + i->second +
-                    ".  Original error: " + e.what();
-                std::invalid_argument t(msg);
-                throw t;
-            }
-        }        
+    typename std::enable_if<not std::is_same<std::string,T>::value, T>::type
+    find(const std::string &k, T default_value, bool &found) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
+        return find_impl<T>(k,default_value,found);
+        // verifyParam(k);
+        // // const_iterator i = data.find(getKey(k));
+        // const std::string& value = getString(k,found);
+        // // if (i == data.end()) {
+        //     // found = false;
+        // if ( !found ) {
+        //     return default_value;
+        // }
+        // else {
+        //     // found = true;
+        //     try {
+        //         // return SST::Core::from_string<T>(i->second);
+        //         return SST::Core::from_string<T>(value);
+        //     }
+        //     catch ( const std::invalid_argument& e ) {
+        //         std::string msg = "Params::find(): No conversion for value: key = " + k + ", value =  " + value +
+        //             ".  Original error: " + e.what();
+        //         std::invalid_argument t(msg);
+        //         throw t;
+        //     }
+        // }        
     }
     
     /** Find a Parameter value in the set, and return its value as a type T.
@@ -193,33 +283,58 @@ public:
      */
     template <class T>
     T find(const std::string &k, std::string default_value, bool &found) const {
-        verifyParam(k);
-        const_iterator i = data.find(getKey(k));
-        if (i == data.end()) {
-            found = false;
-            try {
-                return SST::Core::from_string<T>(default_value);
-            }
-            catch ( const std::invalid_argument& e ) {
-                std::string msg = "Params::find(): Invalid default value specified: key = " + k + ", value =  " + i->second +
-                    ".  Original error: " + e.what();
-                std::invalid_argument t(msg);
-                throw t;
-            }
-        } else {
-            found = true;
-            try {
-                return SST::Core::from_string<T>(i->second);
-            }
-            catch ( const std::invalid_argument& e ) {
-                std::string msg = "Params::find(): No conversion for value: key = " + k + ", value =  " + i->second +
-                    ".  Original error: " + e.what();
-                std::invalid_argument t(msg);
-                throw t;
-            }
-        }        
+        TraceFunction trace(CALL_INFO_LONG,false);
+        return find_impl<T>(k,default_value,found);
+        // verifyParam(k);
+        // // const_iterator i = data.find(getKey(k));
+        // // if (i == data.end()) {
+        // //     found = false;
+        // const std::string& value = getString(k,found);
+        // if ( !found ) {
+        //     try {
+        //         return SST::Core::from_string<T>(default_value);
+        //     }
+        //     catch ( const std::invalid_argument& e ) {
+        //         std::string msg = "Params::find(): Invalid default value specified: key = " + k + ", value =  " + default_value +
+        //             ".  Original error: " + e.what();
+        //         std::invalid_argument t(msg);
+        //         throw t;
+        //     }
+        // }
+        // else {
+        //     found = true;
+        //     try {
+        //         return SST::Core::from_string<T>(value);
+        //     }
+        //     catch ( const std::invalid_argument& e ) {
+        //         std::string msg = "Params::find(): No conversion for value: key = " + k + ", value =  " + value +
+        //             ".  Original error: " + e.what();
+        //         std::invalid_argument t(msg);
+        //         throw t;
+        //     }
+        // }        
     }
     
+    /** Find a Parameter value in the set, and return its value as a type T.
+     * This version of find is only enabled for bool.  This
+     * is required because a string literal will be preferentially
+     * cast to a bool rather than a string.  This ensures that
+     * find<bool> works correctly for string literals.  This class uses
+     * SST::Core::from_string to do the conversion.
+     * @param k - Parameter name
+     * @param default_value - Default value to return if parameter isn't found,
+     *   specified as a string literal
+     */
+    template <class T>
+    typename std::enable_if<std::is_same<bool,T>::value, T>::type
+    find(const std::string &k, const char* default_value, bool &found ) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
+        if ( 0 == default_value ) {
+            return find<T>(k, static_cast<T>(0), found);
+        }
+        return find<T>(k, std::string(default_value), found);
+    }
+
     /** Find a Parameter value in the set, and return its value as a type T.
      * Type T must be either a basic numeric type (including bool),
      * a std::string, or a class that has a constructor with a std::string
@@ -230,9 +345,17 @@ public:
      */
     template <class T>
     T find(const std::string &k, T default_value ) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
         bool tmp;
         return find<T>(k, default_value, tmp);
     }
+    
+    // template <bool>
+    // bool find(const std::string &k, bool default_value ) const {
+    //     TraceFunction trace(CALL_INFO_LONG,false);
+    //     bool tmp;
+    //     return find<bool>(k, default_value, tmp);
+    // }
     
     /** Find a Parameter value in the set, and return its value as a type T.
      * Type T must be either a basic numeric type (including bool) ,
@@ -245,8 +368,30 @@ public:
      */
     template <class T>
     T find(const std::string &k, std::string default_value ) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
         bool tmp;
         return find<T>(k, default_value, tmp);
+    }
+    
+    /** Find a Parameter value in the set, and return its value as a type T.
+     * This version of find is only enabled for bool.  This
+     * is required because a string literal will be preferentially
+     * cast to a bool rather than a string.  This ensures that
+     * find<bool> works correctly for string literals.This class uses
+     * SST::Core::from_string to do the conversion.
+     * @param k - Parameter name
+     * @param default_value - Default value to return if parameter isn't found,
+     *   specified as a string literal
+     */
+    template <class T>
+    typename std::enable_if<std::is_same<bool,T>::value, T>::type
+    find(const std::string &k, const char* default_value ) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
+        bool tmp;
+        if ( 0 == default_value ) {
+            return find<T>(k, static_cast<T>(0), tmp);
+        }
+        return find<T>(k, std::string(default_value), tmp);
     }
     
     /** Find a Parameter value in the set, and return its value as a type T.
@@ -258,23 +403,29 @@ public:
      */
     template <class T>
     T find(const std::string &k) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
+        trace.output("**** not speicalized ****\n");
         bool tmp;
         T default_value = T();
-        return find(k, default_value, tmp);
+        return find<T>(k, default_value, tmp);
     }
-    
-    /** Find a Parameter value in the set, and return its value as a type T.
-     * Type T must be either a basic numeric type (including bool) ,
-     * a std::string, or a class that has a constructor with a std::string
-     * as its only parameter.  This class uses SST::Core::from_string to
-     * do the conversion.
+
+    /** Find a Parameter value in the set, and return its value as a
+     * type T.  Type T must be either a basic numeric type , a
+     * std::string, or a class that has a constructor with a
+     * std::string as its only parameter.  This version of find is not
+     * enabled for bool as it conflicts with find<bool>(string key, bool
+     * default_value).  This class uses SST::Core::from_string to do
+     * the conversion.
      * @param k - Parameter name
      * @param found - set to true if the the parameter was found
      */
     template <class T>
-    T find(const std::string &k, bool &found) const {
+    typename std::enable_if<not std::is_same<bool, T>::value, T>::type
+    find(const std::string &k, bool &found) const {
+        TraceFunction trace(CALL_INFO_LONG,false);
         T default_value = T();
-        return find(k, default_value, found);
+        return find<T>(k, default_value, found);
     }
 
     /** Find a Parameter value in the set, and return its value as a
@@ -291,11 +442,14 @@ public:
     template <class T>
     void find_array(const key_type &k, std::vector<T>& vec) const {
         verifyParam(k);
-        const_iterator i = data.find(getKey(k));
-        if ( i == data.end()) {
-            return;
-        }
-        std::string value = i->second;
+        // const_iterator i = data.find(getKey(k));
+        // if ( i == data.end()) {
+        //     return;
+        // }
+        // std::string value = i->second;
+        bool found = false;
+        std::string value = getString(k,found);
+        if ( !found ) return;
         // String should start with [ and end with ], we need to cut
         // these out
         // Test the value for correct [...] formatting
@@ -328,102 +482,112 @@ public:
     }
 
     /** Print all key/value parameter pairs to specified ostream */
-    void print_all_params(std::ostream &os, std::string prefix = "") const {
-        for (const_iterator i = data.begin() ; i != data.end() ; ++i) {
-            os << prefix << "key=" << keyMapReverse[i->first] << ", value=" << i->second << std::endl;
-        }
-    }
+    void print_all_params(std::ostream &os, std::string prefix = "") const;
+    // {
+    //     for (const_iterator i = data.begin() ; i != data.end() ; ++i) {
+    //         os << prefix << "key=" << keyMapReverse[i->first] << ", value=" << i->second << std::endl;
+    //     }
+    // }
 
-    void print_all_params(Output &out, std::string prefix = "") const {
-        for (const_iterator i = data.begin() ; i != data.end() ; ++i) {
-            out.output("%s%s = %s\n", prefix.c_str(), keyMapReverse[i->first].c_str(), i->second.c_str());
-        }
-    }
+    void print_all_params(Output &out, std::string prefix = "") const;
+    // {
+    //     for (const_iterator i = data.begin() ; i != data.end() ; ++i) {
+    //         out.output("%s%s = %s\n", prefix.c_str(), keyMapReverse[i->first].c_str(), i->second.c_str());
+    //     }
+    // }
 
 
 
     /** Add a key value pair into the param object.
      */
-    void insert(std::string key, std::string value, bool overwrite = true) {
-        if ( overwrite ) {
-            data[getKey(key)] = value;
-        }
-        else {
-            uint32_t id = getKey(key);
-            data.insert(std::make_pair(id, value));
-        }
-    }
+    void insert(std::string key, std::string value, bool overwrite = true);
+    // {
+    //     if ( overwrite ) {
+    //         data[getKey(key)] = value;
+    //     }
+    //     else {
+    //         uint32_t id = getKey(key);
+    //         data.insert(std::make_pair(id, value));
+    //     }
+    // }
 
-    void insert(const Params& params) {
-        data.insert(params.data.begin(), params.data.end());
-    }
+    void insert(const Params& params);
+    // {
+    //     data.insert(params.data.begin(), params.data.end());
+    // }
 
-    std::set<std::string> getKeys() const {
-        std::set<std::string> ret;
-        for (const_iterator i = data.begin() ; i != data.end() ; ++i) {
-            ret.insert(keyMapReverse[i->first]);
-        }
-        return ret;
-    }
+    std::set<std::string> getKeys() const;
+    // {
+    //     std::set<std::string> ret;
+    //     for (const_iterator i = data.begin() ; i != data.end() ; ++i) {
+    //         ret.insert(keyMapReverse[i->first]);
+    //     }
+    //     return ret;
+    // }
     
      /** Returns a new parameter object with parameters that match
      * the specified prefix.
      */
-    Params find_prefix_params(std::string prefix) const {
-        Params ret;
-        ret.enableVerify(false);
-        for (const_iterator i = data.begin() ; i != data.end() ; ++i) {
-            std::string key = keyMapReverse[i->first].substr(0, prefix.length());
-            if (key == prefix) {
-                ret.insert(keyMapReverse[i->first].substr(prefix.length()), i->second);
-            }
-        }
-        ret.allowedKeys = allowedKeys;
-        ret.enableVerify(verify_enabled);
+    Params find_prefix_params(std::string prefix) const;
+    // {
+    //     Params ret;
+    //     ret.enableVerify(false);
+    //     for (const_iterator i = data.begin() ; i != data.end() ; ++i) {
+    //         std::string key = keyMapReverse[i->first].substr(0, prefix.length());
+    //         if (key == prefix) {
+    //             ret.insert(keyMapReverse[i->first].substr(prefix.length()), i->second);
+    //         }
+    //     }
+    //     ret.allowedKeys = allowedKeys;
+    //     ret.enableVerify(verify_enabled);
 
-        return ret;
-    }
+    //     return ret;
+    // }
 
 
     /**
      * @param k   Key to search for
      * @return    True if the params contains the key, false otherwise
      */
-    bool contains(const key_type &k) {
-        return data.find(getKey(k)) != data.end();
-    }
+    bool contains(const key_type &k);
+    // {
+    //     return data.find(getKey(k)) != data.end();
+    // }
 
     /**
      * @param keys   Set of keys to consider valid to add to the stack
      *               of legal keys
      */
-    void pushAllowedKeys(const KeySet_t &keys) {
-        allowedKeys.push_back(keys);
-    }
+    void pushAllowedKeys(const KeySet_t &keys);
+    // {
+    //     allowedKeys.push_back(keys);
+    // }
 
     /**
      * Removes the most recent set of keys considered allowed
      */
-    void popAllowedKeys() {
-        allowedKeys.pop_back();
-    }
+    void popAllowedKeys();
+    // {
+    //     allowedKeys.pop_back();
+    // }
 
     /**
      * @param k   Key to check for validity
      * @return    True if the key is considered allowed
      */
-    void verifyParam(const key_type &k) const {
-        if ( !g_verify_enabled || !verify_enabled ) return;
+    void verifyParam(const key_type &k) const;
+//     {
+//         if ( !g_verify_enabled || !verify_enabled ) return;
 
-        for ( std::vector<KeySet_t>::const_reverse_iterator ri = allowedKeys.rbegin() ; ri != allowedKeys.rend() ; ++ri ) {
-            if ( ri->find(k) != ri->end() ) return;
-        }
+//         for ( std::vector<KeySet_t>::const_reverse_iterator ri = allowedKeys.rbegin() ; ri != allowedKeys.rend() ; ++ri ) {
+//             if ( ri->find(k) != ri->end() ) return;
+//         }
 
-#ifdef USE_PARAM_WARNINGS
-        SST::Output outXX("ParamWarning: ", 0, 0, Output::STDERR);
-        outXX.output(CALL_INFO, "Warning: Parameter \"%s\" is undocumented.\n", k.c_str());
-#endif
-    }
+// #ifdef USE_PARAM_WARNINGS
+//         SST::Output outXX("ParamWarning: ", 0, 0, Output::STDERR);
+//         outXX.output(CALL_INFO, "Warning: Parameter \"%s\" is undocumented.\n", k.c_str());
+// #endif
+//     }
 
 
     /**
@@ -431,15 +595,16 @@ public:
      * @param id  Key ID to look up
      * @return    String name of the parameter
      */
-    static const std::string& getParamName(uint32_t id)
-    {
-        return keyMapReverse[id];
-    }
+    static const std::string& getParamName(uint32_t id);
+    // {
+    //     return keyMapReverse[id];
+    // }
 
 
-    void serialize_order(SST::Core::Serialization::serializer &ser) override {
-        ser & data;
-    }    
+    void serialize_order(SST::Core::Serialization::serializer &ser) override;
+    // {
+    //     ser & data;
+    // }    
     
     ImplementSerializable(SST::Params)
 
@@ -449,29 +614,29 @@ private:
     bool verify_enabled;
     static bool g_verify_enabled;
 
-    uint32_t getKey(const std::string &str) const
-    {
-        std::lock_guard<SST::Core::ThreadSafe::Spinlock> lock(keyLock);
-        std::map<std::string, uint32_t>::iterator i = keyMap.find(str);
-        if ( i == keyMap.end() ) {
-            return (uint32_t)-1;
-        }
-        return i->second;
-    }
+    uint32_t getKey(const std::string &str) const;
+    // {
+    //     std::lock_guard<SST::Core::ThreadSafe::Spinlock> lock(keyLock);
+    //     std::map<std::string, uint32_t>::iterator i = keyMap.find(str);
+    //     if ( i == keyMap.end() ) {
+    //         return (uint32_t)-1;
+    //     }
+    //     return i->second;
+    // }
 
-    uint32_t getKey(const std::string &str)
-    {
-        std::lock_guard<SST::Core::ThreadSafe::Spinlock> lock(keyLock);
-        std::map<std::string, uint32_t>::iterator i = keyMap.find(str);
-        if ( i == keyMap.end() ) {
-            uint32_t id = nextKeyID++;
-            keyMap.insert(std::make_pair(str, id));
-            keyMapReverse.push_back(str);
-            assert(keyMapReverse.size() == nextKeyID);
-            return id;
-        }
-        return i->second;
-    }
+    uint32_t getKey(const std::string &str);
+    // {
+    //     std::lock_guard<SST::Core::ThreadSafe::Spinlock> lock(keyLock);
+    //     std::map<std::string, uint32_t>::iterator i = keyMap.find(str);
+    //     if ( i == keyMap.end() ) {
+    //         uint32_t id = nextKeyID++;
+    //         keyMap.insert(std::make_pair(str, id));
+    //         keyMapReverse.push_back(str);
+    //         assert(keyMapReverse.size() == nextKeyID);
+    //         return id;
+    //     }
+    //     return i->second;
+    // }
 
     /* Friend main() because it broadcasts the maps */
     friend int ::main(int argc, char *argv[]);
@@ -483,6 +648,40 @@ private:
 
 
 };
+
+// template<>
+// uint32_t Params::find(const std::string &k) const;
+
+class UnitAlgebra;
+
+#define SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(type) \
+    template<> \
+    type Params::find(const std::string &k, type default_value, bool &found) const; \
+    template<> \
+    type Params::find(const std::string &k, std::string default_value, bool &found) const; \
+    template <> \
+    type Params::find(const std::string &k, type default_value ) const; \
+    template <> \
+    type Params::find(const std::string &k, std::string default_value ) const; \
+    template <> \
+    type Params::find(const std::string &k) const;
+    
+   
+// SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(int32_t)
+// SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(uint32_t)
+// SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(int64_t)
+// SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(uint64_t)
+// SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(bool)
+// SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(float)
+// SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(double)
+// SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(UnitAlgebra)
+
+// // std::string has to be special cased because of signature conflicts
+// // SST_PARAMS_DECLARE_TEMPLATE_SPECIALIZATION(std::string)
+// template<>
+// std::string Params::find<std::string>(const std::string &k, std::string default_value, bool &found) const;
+
+
 
 } //namespace SST
 

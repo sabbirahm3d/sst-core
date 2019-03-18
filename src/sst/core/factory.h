@@ -53,6 +53,12 @@ public:
      */
     bool isPortNameValid(const std::string &type, const std::string port_name);
 
+    /** Get a list of allowed param keys for a given component type.
+     * @param type - Name of component in lib.name format
+     * @return True if this is a valid portname
+     */
+    const Params::KeySet_t& getParamNames(const std::string &type);
+
 
     /** Attempt to create a new Component instantiation
      * @param id - The unique ID of the component instantiation
@@ -160,12 +166,12 @@ public:
      */
     bool DoesComponentInfoStatisticNameExist(const std::string& type, const std::string& statisticName);
 
-    /** Determine if a statistic is defined in a subcomponents ElementInfoStatistic
-     * @param type - The name of the subcomponent
-     * @param statisticName - The name of the statistic 
-     * @return True if the statistic is defined in the component's ElementInfoStatistic
-     */
-    bool DoesSubComponentInfoStatisticNameExist(const std::string& type, const std::string& statisticName);
+    // /** Determine if a statistic is defined in a subcomponents ElementInfoStatistic
+    //  * @param type - The name of the subcomponent
+    //  * @param statisticName - The name of the statistic 
+    //  * @return True if the statistic is defined in the component's ElementInfoStatistic
+    //  */
+    // bool DoesSubComponentInfoStatisticNameExist(const std::string& type, const std::string& statisticName);
 
     /** Get the enable level of a statistic defined in the component's ElementInfoStatistic
      * @param componentname - The name of the component

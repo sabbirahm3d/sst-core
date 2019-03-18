@@ -158,6 +158,11 @@ public:
     std::map<std::string,PartitionerElementInfo*> partitioners;
     PythonModuleElementInfo* python_module;
 
+    // Convenience data structures to help find valid ports, params,
+    // stats and slots
+    std::map<std::string,BaseParamsElementInfo*> params_elements; // params
+    std::map<std::string,BaseComponentElementInfo*> basecomponents; // ports,stats,slots
+    
     LibraryInfo() :
         python_module(NULL) {}
     
@@ -192,6 +197,16 @@ public:
     PythonModuleElementInfo* getPythonModule() {
         return python_module;
     }
+
+    BaseParamsElementInfo* getBaseParamsElementInfo(const std::string &name) {
+        if ( params_elements.count(name) == 0 ) return NULL;
+        return params_elements[name];        
+    }
+    
+    BaseComponentElementInfo* getBaseComponentElementInfo(const std::string &name) {
+        if ( basecomponents.count(name) == 0 ) return NULL;
+        return basecomponents[name];        
+    }
     
     std::string toString();
 };
@@ -213,18 +228,23 @@ public:
     static bool addComponent(ComponentElementInfo* comp) {
         LibraryInfo* library = getLibrary(comp->getLibrary());
         library->components[comp->getName()] = comp;
+        library->params_elements[comp->getName()] = comp;
+        library->basecomponents[comp->getName()] = comp;
         return true;
     }
 
     static bool addSubComponent(SubComponentElementInfo* comp) {
         LibraryInfo* library = getLibrary(comp->getLibrary());
         library->subcomponents[comp->getName()] = comp;
+        library->params_elements[comp->getName()] = comp;
+        library->basecomponents[comp->getName()] = comp;
         return true;
     }
 
     static bool addModule(ModuleElementInfo* comp) {
         LibraryInfo* library = getLibrary(comp->getLibrary());
         library->modules[comp->getName()] = comp;
+        library->params_elements[comp->getName()] = comp;
         return true;
     }
 

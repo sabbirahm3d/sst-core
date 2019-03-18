@@ -82,8 +82,8 @@ protected:
         return BaseComponent::loadSubComponent(type, getTrueComponent(), params);
     }
 
-    // Does the statisticName exist in the ElementInfoStatistic
-    virtual bool doesComponentInfoStatisticExist(const std::string &statisticName) const final override;
+    // // Does the statisticName exist in the ElementInfoStatistic
+    // virtual bool doesComponentInfoStatisticExist(const std::string &statisticName) const final override;
 
 private:
     /** Component's type, set by the factory when the object is created.

@@ -87,7 +87,6 @@ public:
 
     
     P* create(ARGS... args) {
-
         // using expander = int[];
         // std::cout << std::hex;
         // (void)expander{0, (void(std::cout << ',' << std::forward<ARGS>(args)), 0)...};

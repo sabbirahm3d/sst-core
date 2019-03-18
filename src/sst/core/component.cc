@@ -23,8 +23,8 @@ namespace SST {
 
 Component::Component(ComponentId_t id) : BaseComponent(id)
 {
-    my_info = sim->getComponentInfo(id);
-    currentlyLoadingSubComponent = my_info;
+    // my_info = sim->getComponentInfo(id);
+    // currentlyLoadingSubComponent = my_info;
 }
 
 
@@ -67,12 +67,6 @@ Component::primaryComponentOKToEndSim()
 }
 
 
-
-bool Component::doesComponentInfoStatisticExist(const std::string &statisticName) const
-{
-    const std::string& type = my_info->getType();
-    return Factory::getFactory()->DoesComponentInfoStatisticNameExist(type, statisticName);
-}
 
 
 } // namespace SST

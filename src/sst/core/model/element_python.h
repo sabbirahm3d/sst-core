@@ -153,12 +153,13 @@ public:
      */ 
     SSTElementPythonModule(std::string library);
 
-    
+#ifdef SST_ENABLE_DEPRECATED
     __attribute__ ((deprecated("Support for addPrimaryModule will be removed in version 9.0.  Please use createPrimaryModule().")))
     void addPrimaryModule(char* file);
 
     __attribute__ ((deprecated("Support for addPrimaryModule will be removed in version 9.0.  Please use createPrimaryModule() to get an SSTElementPythonModuleCode object then use it's addSubModule() method.")))
     void addSubModule(std::string name, char* file);
+#endif
 
     virtual void* load();
 

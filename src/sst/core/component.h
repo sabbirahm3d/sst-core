@@ -48,6 +48,7 @@ public:
     virtual ~Component();
 
 
+#ifdef SST_ENABLE_DEPRECATED
     /** Register that the simulation should not end until this
         component says it is OK to. Calling this function (generally
         done in Component::setup() or in component constructor)
@@ -66,6 +67,7 @@ public:
         global counter, which, upon reaching zero, indicates that the
         simulation can terminate. @sa Component::registerExit() */
     bool unregisterExit() __attribute__ ((deprecated("unregisterExit is deprecated and will be removed in SST version 10.0.  Please use primaryComponentOKToEndSim() instead.")));
+#endif
 
     /** Register as a primary component, which allows the component to
         specify when it is and is not OK to end simulation.  The

@@ -142,7 +142,7 @@ public:
      * Add a port name to the list of allowed ports.
      * Used by SelfLinks, as these are undocumented.
      */
-    void addSelfPort(std::string& name)
+    void addSelfPort(const std::string& name)
     {
         selfPorts.push_back(name);
     }

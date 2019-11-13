@@ -134,6 +134,7 @@ SSTElementPythonModule::SSTElementPythonModule(std::string library) :
     sstlibrary = "sst." + library;
 }
 
+#ifdef SST_ENABLE_DEPRECATED
 void
 SSTElementPythonModule::addPrimaryModule(char* file)
 {
@@ -150,6 +151,7 @@ SSTElementPythonModule::addSubModule(std::string name, char* file)
 {
     sub_modules.push_back(std::make_pair(name,file));
 }
+#endif
 
 
 void*

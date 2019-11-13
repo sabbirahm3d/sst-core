@@ -200,7 +200,7 @@ Factory::getParamNames(const std::string &type)
 
 Component*
 Factory::CreateComponent(ComponentId_t id, 
-                         std::string &type, 
+                         const std::string& type,
                          Params& params)
 {
     std::string elemlib, elem;
@@ -424,7 +424,7 @@ Factory::GetComponentInfoStatisticUnits(const std::string& type, const std::stri
 
 
 Module*
-Factory::CreateModule(std::string type, Params& params)
+Factory::CreateModule(const std::string& type, Params& params)
 {
     if("" == type) {
         Simulation::getSimulation()->getSimulationOutput().fatal(CALL_INFO,
@@ -464,7 +464,7 @@ Factory::CreateModule(std::string type, Params& params)
 }
 
 Module*
-Factory::CreateModuleWithComponent(std::string type, Component* comp, Params& params)
+Factory::CreateModuleWithComponent(const std::string& type, Component* comp, Params& params)
 {
     std::string elemlib, elem;
     std::tie(elemlib, elem) = parseLoadName(type);
@@ -501,7 +501,7 @@ Factory::CreateModuleWithComponent(std::string type, Component* comp, Params& pa
 }
 
 SubComponent*
-Factory::CreateSubComponent(std::string type, Component* comp, Params& params)
+Factory::CreateSubComponent(const std::string& type, Component* comp, Params& params)
 {
     std::string elemlib, elem;
     std::tie(elemlib, elem) = parseLoadName(type);
@@ -538,7 +538,7 @@ Factory::CreateSubComponent(std::string type, Component* comp, Params& params)
 
 
 bool
-Factory::doesSubComponentExist(std::string type)
+Factory::doesSubComponentExist(const std::string& type)
 {
     std::string elemlib, elem;
     std::tie(elemlib, elem) = parseLoadName(type);
@@ -560,7 +560,7 @@ Factory::doesSubComponentExist(std::string type)
 }
 
 void
-Factory::RequireEvent(std::string eventname)
+Factory::RequireEvent(const std::string& eventname)
 {
     std::string elemlib, elem;
     std::tie(elemlib, elem) = parseLoadName(eventname);
@@ -571,7 +571,7 @@ Factory::RequireEvent(std::string eventname)
 }
 
 Partition::SSTPartitioner*
-Factory::CreatePartitioner(std::string name, RankInfo total_ranks, RankInfo my_rank, int verbosity)
+Factory::CreatePartitioner(const std::string& name, RankInfo total_ranks, RankInfo my_rank, int verbosity)
 {
     std::string elemlib, elem;
     std::tie(elemlib, elem) = parseLoadName(name);

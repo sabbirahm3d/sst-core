@@ -35,6 +35,7 @@ Component::~Component()
 {
 }
 
+#ifdef SST_ENABLE_DEPRECATED
 bool Component::registerExit()
 {
     int thread = getSimulation()->getRank().thread;
@@ -46,6 +47,7 @@ bool Component::unregisterExit()
     int thread = getSimulation()->getRank().thread;
     return getSimulation()->getExit()->refDec( getId(), thread );
 }
+#endif
 
 void
 Component::registerAsPrimaryComponent()

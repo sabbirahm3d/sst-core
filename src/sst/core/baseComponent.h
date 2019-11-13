@@ -62,9 +62,11 @@ public:
     BaseComponent() {}
     virtual ~BaseComponent();
 
+#ifdef SST_ENABLE_DEPRECATED
     /** Returns a pointer to the parent BaseComponent */
     BaseComponent* getParent() const __attribute__ ((deprecated("getParent() will be removed in SST version 10.0.  With the new subcomponent structure, direct access to your parent is not allowed.")))
         { return my_info->parent_info->component; }
+#endif
 
     const std::string& getType() const { return my_info->getType(); }
     
@@ -321,8 +323,10 @@ public:
      * @param params Parameters the module should use for configuration
      * @return handle to new instance of module, or NULL on failure.
      */
-    Module* loadModuleWithComponent(std::string type, Component* comp, Params& params) __attribute__ ((deprecated("loadModuleWithComponent will be removed in SST version 10.0.  If the module needs access to the parent component, please use SubComponents instead of Modules.")));
-
+#ifdef SST_ENABLE_DEPRECATED
+    Module* loadModuleWithComponent(std::string type, Component* comp, Params& params)
+      __attribute__ ((deprecated("loadModuleWithComponent will be removed in SST version 10.0.  If the module needs access to the parent component, please use SubComponents instead of Modules.")));
+#endif
 
     /** Loads a module from an element Library
      * @param type Fully Qualified library.moduleName
@@ -344,12 +348,16 @@ public:
      * @param params Parameters the module should use for configuration
      * @return handle to new instance of SubComponent, or NULL on failure.
      */
-    SubComponent* loadSubComponent(std::string type, Component* comp, Params& params) __attribute__ ((deprecated("This version of loadSubComponent will be removed in SST version 10.0.  Please switch to new user defined API (LoadUserSubComponent(std::string, int, ARGS...)).")));
+#ifdef SST_ENABLE_DEPRECATED
+    SubComponent* loadSubComponent(const std::string& type, Component* comp, Params& params)
+      __attribute__ ((deprecated("This version of loadSubComponent will be removed in SST version 10.0.  Please switch to new user defined API (LoadUserSubComponent(std::string, int, ARGS...)).")));
 
     /* New ELI style */
-    SubComponent* loadNamedSubComponent(std::string name) __attribute__ ((deprecated("This version of loadNamedSubComponent will be removed in SST version 10.0.  Please switch to new user defined API (LoadUserSubComponent(std::string, int, ARGS...)).")));
-    SubComponent* loadNamedSubComponent(std::string name, Params& params) __attribute__ ((deprecated("This version of loadNamedSubComponent will be removed in SST version 10.0.  Please switch to new user defined API (LoadUserSubComponent(std::string, int, ARGS...)).")));
-
+    SubComponent* loadNamedSubComponent(const std::string& name)
+      __attribute__ ((deprecated("This version of loadNamedSubComponent will be removed in SST version 10.0.  Please switch to new user defined API (LoadUserSubComponent(std::string, int, ARGS...)).")));
+    SubComponent* loadNamedSubComponent(const std::string& name, Params& params)
+      __attribute__ ((deprecated("This version of loadNamedSubComponent will be removed in SST version 10.0.  Please switch to new user defined API (LoadUserSubComponent(std::string, int, ARGS...)).")));
+#endif
     
 protected:
     // When you direct load, the ComponentExtension does not need any
@@ -467,8 +475,8 @@ protected:
     
 private:
 
-    SubComponent* loadNamedSubComponent(std::string name, int slot_num);
-    SubComponent* loadNamedSubComponent(std::string name, int slot_num, Params& params);
+    SubComponent* loadNamedSubComponent(const std::string& name, int slot_num);
+    SubComponent* loadNamedSubComponent(const std::string& name, int slot_num, Params& params);
 
     SubComponent* loadNamedSubComponentLegacyPrivate(ComponentInfo* sub_info, Params& params);
 
@@ -486,8 +494,7 @@ private:
     void pushValidParams(Params& params, const std::string& type);
     
     template <class T, class... ARGS>
-    T* loadUserSubComponentByIndex(std::string slot_name, int slot_num, int share_flags, ARGS... args) {
-
+    T* loadUserSubComponentByIndex(const std::string& slot_name, int slot_num, int share_flags, ARGS... args) {
         share_flags = share_flags & ComponentInfo::USER_FLAGS;
         
         // Check to see if the slot exists
@@ -519,7 +526,7 @@ private:
 
 
 public:
-    SubComponentSlotInfo* getSubComponentSlotInfo(std::string name, bool fatalOnEmptyIndex = false);
+    SubComponentSlotInfo* getSubComponentSlotInfo(const std::string& name, bool fatalOnEmptyIndex = false);
 
     /** Retrieve the X,Y,Z coordinates of this component */
     const std::vector<double>& getCoordinates() const {
@@ -546,7 +553,7 @@ protected:
         return my_info->defaultTimeBase;
     }
 
-    bool doesSubComponentExist(std::string type);
+    bool doesSubComponentExist(const std::string& type);
 
 
     /** Find a lookup table */
@@ -563,9 +570,10 @@ protected:
     // Return the Units for the statisticName from the ElementInfoStatistic
     // std::string getComponentInfoStatisticUnits(const std::string &statisticName) const;
 
-    
-    Component* getTrueComponent() const __attribute__ ((deprecated("getTrueParent will be removed in SST version 10.0.  With the new subcomponent structure, direct access to your parent component is not allowed.")));
-
+#ifdef SST_ENABLE_DEPRECATED
+    Component* getTrueComponent() const
+      __attribute__ ((deprecated("getTrueParent will be removed in SST version 10.0.  With the new subcomponent structure, direct access to your parent component is not allowed.")));
+#endif
 
 protected:
     Simulation *sim;
@@ -677,8 +685,8 @@ public:
     }
 
 
+#ifdef SST_ENABLE_DEPRECATED
     // Create functions that support the legacy API
-
     template <typename T>
     __attribute__ ((deprecated("This version of create will be removed in SST version 10.0.  Please switch to the new user defined API, which includes the share flags.")))
     T* create(int slot_num, Params& params) const 
@@ -700,7 +708,7 @@ public:
         Params empty;
         return private_createAll<T>(empty, vec, insertNulls);
     }
-
+#endif
 
     // Create functions that support the new API
 

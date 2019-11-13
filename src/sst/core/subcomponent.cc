@@ -19,22 +19,28 @@ SST_ELI_DEFINE_INFO_EXTERN(SubComponent)
 SST_ELI_DEFINE_CTOR_EXTERN(SubComponent)
 
 SubComponent::SubComponent(Component* parent) :
-    BaseComponent(parent->getCurrentlyLoadingSubComponentID()),
-    parent(parent)
+    BaseComponent(parent->getCurrentlyLoadingSubComponentID())
+#ifdef SST_ENABLE_DEPRECATED
+    ,parent(parent)
+#endif
 {
     loadedWithLegacyAPI = true;
 }
 
 SubComponent::SubComponent(ComponentId_t id) :
-    BaseComponent(id),
-    parent(getTrueComponentPrivate())
+    BaseComponent(id)
+#ifdef SST_ENABLE_DEPRECATED
+    ,parent(getTrueComponentPrivate())
+#endif
 {}
 
 
+#ifdef SST_ENABLE_DEPRECATED
 SubComponent*
 SubComponent::loadSubComponent(std::string type, Params& params)
 {
     return BaseComponent::loadSubComponent(type, getTrueComponentPrivate(), params);
 }
+#endif
 
 } // namespace SST

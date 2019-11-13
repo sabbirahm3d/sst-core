@@ -424,6 +424,7 @@ BaseComponent::loadModule(std::string type, Params& params)
     return Factory::getFactory()->CreateModule(type,params);
 }
 
+#ifdef SST_ENABLE_DEPRECATED
 Module*
 BaseComponent::loadModuleWithComponent(std::string type, Component* comp, Params& params)
 {
@@ -432,7 +433,7 @@ BaseComponent::loadModuleWithComponent(std::string type, Component* comp, Params
 
 /* Old ELI style */
 SubComponent*
-BaseComponent::loadSubComponent(std::string type, Component* comp, Params& params)
+BaseComponent::loadSubComponent(const std::string& type, Component* comp, Params& params)
 {
     // /* Old Style SubComponents end up with their parent's Id, name, etc. */
     // ComponentInfo *sub_info = new ComponentInfo(type, &params, my_info);
@@ -448,6 +449,7 @@ BaseComponent::loadSubComponent(std::string type, Component* comp, Params& param
 
     return ret;
 }
+#endif
 
 SubComponent*
 BaseComponent::loadLegacySubComponentPrivate(ComponentId_t cid, const std::string& type, Params& params) {
@@ -460,6 +462,7 @@ BaseComponent::loadLegacySubComponentPrivate(ComponentId_t cid, const std::strin
     return ret;
 }
 
+#ifdef SST_ENABLE_DEPRECATED
 Component*
 BaseComponent::getTrueComponent() const {
     // Walk up the parent tree until we hit the base Component.  We
@@ -468,6 +471,7 @@ BaseComponent::getTrueComponent() const {
     while ( info->parent_info != NULL ) info = info->parent_info;
     return static_cast<Component* const>(info->component);
 }
+#endif
 
 Component*
 BaseComponent::getTrueComponentPrivate() const {
@@ -478,15 +482,16 @@ BaseComponent::getTrueComponentPrivate() const {
     return static_cast<Component* const>(info->component);
 }
 
+#ifdef SST_ENABLE_DEPRECATED
 /* New ELI style */
 SubComponent*
-BaseComponent::loadNamedSubComponent(std::string name) {
+BaseComponent::loadNamedSubComponent(const std::string& name) {
     Params empty;
     return loadNamedSubComponent(name, empty);
 }
 
 SubComponent*
-BaseComponent::loadNamedSubComponent(std::string name, Params& params) {
+BaseComponent::loadNamedSubComponent(const std::string& name, Params& params) {
     // Get list of ComponentInfo objects and make sure that there is
     // only one SubComponent put into this slot
     const std::map<ComponentId_t,ComponentInfo>& subcomps = my_info->getSubComponents();
@@ -505,16 +510,17 @@ BaseComponent::loadNamedSubComponent(std::string name, Params& params) {
     
     return loadNamedSubComponent(name, 0, params);
 }
+#endif
 
 SubComponent*
-BaseComponent::loadNamedSubComponent(std::string name, int slot_num) {
+BaseComponent::loadNamedSubComponent(const std::string& name, int slot_num) {
     Params empty;
     return loadNamedSubComponent(name, slot_num, empty);
 }
 
 // Private
 SubComponent*
-BaseComponent::loadNamedSubComponent(std::string name, int slot_num, Params& params)
+BaseComponent::loadNamedSubComponent(const std::string& name, int slot_num, Params& params)
 {
     if ( !Factory::getFactory()->DoesSubComponentSlotExist(my_info->type, name) ) {
         SST::Output outXX("SubComponentSlotWarning: ", 0, 0, Output::STDERR);
@@ -564,7 +570,7 @@ BaseComponent::loadNamedSubComponentLegacyPrivate(ComponentInfo* sub_info, Param
 }
 
 SubComponentSlotInfo*
-BaseComponent::getSubComponentSlotInfo(std::string name, bool fatalOnEmptyIndex) {
+BaseComponent::getSubComponentSlotInfo(const std::string& name, bool fatalOnEmptyIndex) {
     SubComponentSlotInfo* info = new SubComponentSlotInfo(this, name);
     if ( info->getMaxPopulatedSlotNumber() < 0 ) {
         // Nothing registered on this slot
@@ -581,7 +587,7 @@ BaseComponent::getSubComponentSlotInfo(std::string name, bool fatalOnEmptyIndex)
 }
 
 bool
-BaseComponent::doesSubComponentExist(std::string type)
+BaseComponent::doesSubComponentExist(const std::string& type)
 {
     return Factory::getFactory()->doesSubComponentExist(type);
 }

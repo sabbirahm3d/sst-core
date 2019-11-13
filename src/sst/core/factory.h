@@ -64,41 +64,41 @@ public:
      * @param params - The params to pass to the component's constructor
      * @return Newly created component
      */
-    Component* CreateComponent(ComponentId_t id, std::string &componentname,
+    Component* CreateComponent(ComponentId_t id, const std::string& componentname,
                                Params& params);
 
     /** Ensure that an element library containing the required event is loaded
      * @param eventname - The fully qualified elementlibname.eventname type
      */
-    void RequireEvent(std::string eventname);
+    void RequireEvent(const std::string& eventname);
 
     /** Instantiate a new Module
      * @param type - Fully qualified elementlibname.modulename type
      * @param params - Parameters to pass to the Module's constructor
      */
-    Module* CreateModule(std::string type, Params& params);
+    Module* CreateModule(const std::string& type, Params& params);
 
     /** Instantiate a new Module
      * @param type - Fully qualified elementlibname.modulename type
      * @param comp - Component instance to pass to the Module's constructor
      * @param params - Parameters to pass to the Module's constructor
      */
-    Module* CreateModuleWithComponent(std::string type, Component* comp, Params& params);
+    Module* CreateModuleWithComponent(const std::string& type, Component* comp, Params& params);
 
     /** Instantiate a new Module
      * @param type - Fully qualified elementlibname.modulename type
      * @param comp - Component instance to pass to the SubComponent's constructor
      * @param params - Parameters to pass to the SubComponent's constructor
      */
-    SubComponent* CreateSubComponent(std::string type, Component* comp, Params& params);
+    SubComponent* CreateSubComponent(const std::string& type, Component* comp, Params& params);
 
 
-    bool doesSubComponentExist(std::string type);
+    bool doesSubComponentExist(const std::string& type);
     
     /** Return partitioner function
      * @param name - Fully qualified elementlibname.partitioner type name
      */
-    Partition::SSTPartitioner* CreatePartitioner(std::string name, RankInfo total_ranks, RankInfo my_rank, int verbosity);
+    Partition::SSTPartitioner* CreatePartitioner(const std::string& name, RankInfo total_ranks, RankInfo my_rank, int verbosity);
 
 
     /**

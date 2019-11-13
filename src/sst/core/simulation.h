@@ -234,7 +234,7 @@ public:
 	Set the output directory for this simulation
 	@param outDir Path of directory to place simulation outputs in
     */
-    void setOutputDirectory(std::string& outDir) {
+    void setOutputDirectory(const std::string& outDir) {
 	output_directory = outDir;
     }
 
@@ -242,7 +242,7 @@ public:
 	Returns the output directory of the simulation
 	@return Directory in which simulation outputs are placed
     */
-    std::string& getOutputDirectory() {
+    const std::string& getOutputDirectory() {
 	return output_directory;
     }
 
@@ -250,7 +250,7 @@ public:
      *  Causes to Factory to verify that the required event type can be found.
      *  @param name fully qualified libraryName.EventName
      */
-    void requireEvent(std::string name);
+    void requireEvent(const std::string& name);
 
     /**
      * Returns the time of the next item to be executed
@@ -309,7 +309,7 @@ private:
 
 
 
-    Component* createComponent(ComponentId_t id, std::string &name, 
+    Component* createComponent(ComponentId_t id, const std::string &name,
                                Params &params);
 
     TimeVortex* getTimeVortex() const { return timeVortex; }

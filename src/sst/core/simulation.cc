@@ -174,15 +174,15 @@ Simulation::Simulation()
 
 
 Component*
-Simulation::createComponent( ComponentId_t id, std::string &name, 
-                             Params &params )
+Simulation::createComponent(ComponentId_t id, const std::string &name,
+                            Params &params )
 {
     return factory->CreateComponent(id, name, params);
 }
 
 
 void
-Simulation::requireEvent(std::string name)
+Simulation::requireEvent(const std::string& name)
 {
     factory->RequireEvent(name);
 }

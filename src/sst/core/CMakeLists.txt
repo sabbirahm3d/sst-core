@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.12)
-project(SST CXX)
+project(SST_CORE CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-message("LOL")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # CC = ${MPICC}
 # CXX = ${MPICXX}
 
@@ -247,6 +247,7 @@ set(SST_INFO_SOURCES
     env/envquery.cc
     env/envconfig.cc
 )
+add_executable(sst-info ${SST_INFO_SOURCES})
 
 set(SST_SOURCES
     bootsst.cc
@@ -257,7 +258,7 @@ set(SST_SOURCES
     env/envquery.cc
     env/envconfig.cc
 )
-
+add_executable(sst ${SST_SOURCES})
 
 set(SST_CONFIG_SOURCES
     sstconfigtool.cc
@@ -266,6 +267,7 @@ set(SST_CONFIG_SOURCES
     env/envquery.cc
     env/envconfig.cc
 )
+add_executable(sst-config ${SST_CONFIG_SOURCES})
 
 set(SST_REGISTER_SOURCES
     sstregistertool.cc
@@ -274,6 +276,7 @@ set(SST_REGISTER_SOURCES
     env/envquery.cc
     env/envconfig.cc
 )
+add_executable(sst-register ${SST_REGISTER_SOURCES})
 
 set(SSTSIM_X_SOURCES
     main.cc
@@ -296,7 +299,7 @@ set(SSTSIM_X_LDADD
     -lm
 )
 
-set(sstsim_x_LDFLAGS
+set(SSTSIM_X_LDFLAGS
     ${PARMETIS_LDFLAGS}
     ${ZOLTAN_LDFLAGS}
     ${TCMALLOC_LDFLAGS}
@@ -314,7 +317,7 @@ set(SSTINFO_X_LDADD
     -lm
 )
 
-set(sstinfo_x_LDFLAGS
+set(SSTINFO_X_LDFLAGS
     ${PARMETIS_LDFLAGS}
     ${ZOLTAN_LDFLAGS}
     ${TCMALLOC_LDFLAGS}
@@ -333,8 +336,8 @@ if (NOT SST_ENABLE_PREVIEW_BUILD)
     set(SST_CORE_SOURCES ${SST_CORE_SOURCES} "${deprecated_SST_CORE_SOURCES}")
 endif()
 
-set(SST_CORE_SOURCES ${SST_CORE_SOURCES} "${sst_core_python_sources}")
-set(NOBASE_DIST_SST_HEADERS ${NOBASE_DIST_SST_HEADERS} "${sst_core_python_headers}")
+set(SST_CORE_SOURCES ${SST_CORE_SOURCES} "${SST_CORE_PYTHON_SOURCES}")
+set(NOBASE_DIST_SST_HEADERS ${NOBASE_DIST_SST_HEADERS} "${SST_CORE_PYTHON_HEADERS}")
 
 if (NOT SST_COMPILE_OSX)
     set(SSTSIM_X_LDADD ${SSTSIM_X_LDADD} "-lrt")

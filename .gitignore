@@ -33,3 +33,7 @@ config.status
 libtool
 
 build/
+.DS_Store
+*.pyc
+*.lo
+*.la
